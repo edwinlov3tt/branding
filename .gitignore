@@ -1,0 +1,4 @@
+# Environment files (contains sensitive credentials)
+.env
+.env.local
+.env.production
