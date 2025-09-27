@@ -1,0 +1,24 @@
+:root {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #2a2a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --border: #404040;
+  --brand-red: #dc2626;
+  --brand-red-hover: #b91c1c;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --text-warning: #f59e0b;
+  --radius: 12px;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --header-height: 64px;
+
+  /* Transitions */
+  --transition-base: all 0.2s ease;
+  --transition-slow: all 0.3s ease;
+}

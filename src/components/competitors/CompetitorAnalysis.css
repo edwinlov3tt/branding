@@ -1,0 +1,71 @@
+.competitor-analysis {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.competitors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.competitor-card {
+  padding: 24px;
+}
+
+.competitor-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.competitor-website {
+  color: var(--brand-red);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.competitor-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.competitor-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.competitor-details h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.competitor-details ul {
+  list-style: none;
+  padding: 0;
+}
+
+.competitor-details li {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.competitor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.competitor-pricing {
+  color: var(--success);
+  font-weight: 500;
+  font-size: 14px;
+}

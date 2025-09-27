@@ -1,0 +1,67 @@
+.ai-models {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.model-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.model-avatar {
+  width: 80px;
+  height: 80px;
+  background: var(--bg-tertiary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  color: var(--text-secondary);
+}
+
+.model-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.model-type {
+  color: var(--brand-red);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.model-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 16px;
+  flex: 1;
+}
+
+.model-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.model-voice {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.model-action {
+  width: 100%;
+  padding: 10px;
+}

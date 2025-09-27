@@ -1,0 +1,36 @@
+.extractor {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.extractor-input-group {
+  display: flex;
+  gap: 16px;
+}
+
+.extractor-input-group .input {
+  flex: 1;
+}
+
+.error-message {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+.loading-container {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.loading-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
