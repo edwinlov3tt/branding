@@ -1,0 +1,255 @@
+.typography-preview {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: var(--transition-base);
+}
+
+.typography-preview:hover {
+  border-color: var(--brand-red);
+  box-shadow: var(--shadow);
+}
+
+.typography-preview.display {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+}
+
+.typography-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.font-info {
+  flex: 1;
+}
+
+.font-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+
+.font-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.font-source {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.font-coverage {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.typography-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.font-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  transition: var(--transition-base);
+  text-decoration: none;
+}
+
+.font-link:hover {
+  color: var(--brand-red);
+  background: var(--bg-tertiary);
+}
+
+.remove-font-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.remove-font-button:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.font-weights {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.weight-badge {
+  padding: 2px 6px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.preview-container {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.loading-indicator,
+.error-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 8px;
+  text-align: center;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.error-indicator {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.preview-text {
+  min-height: 40px;
+  color: var(--text-primary);
+  transition: opacity 0.3s ease;
+}
+
+.preview-text.loading {
+  opacity: 0.3;
+}
+
+.display-preview {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.1;
+  margin: 16px 0;
+}
+
+.body-preview {
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+
+.examples-section {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.examples-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.examples-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.example-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  border-left: 3px solid var(--brand-red);
+}
+
+/* Heading Preview Styles */
+.heading-preview {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  transition: var(--transition-base);
+}
+
+.heading-preview:hover {
+  border-color: var(--brand-red);
+}
+
+.heading-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.heading-level {
+  font-weight: 600;
+  color: var(--brand-red);
+  min-width: 24px;
+}
+
+.heading-family {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.heading-weight,
+.heading-size {
+  color: var(--text-secondary);
+}
+
+.remove-heading-button {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.remove-heading-button:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.heading-preview-text {
+  padding: 12px;
+  color: var(--text-primary);
+  transition: opacity 0.3s ease;
+}
+
+.heading-preview-text.loading {
+  opacity: 0.3;
+}

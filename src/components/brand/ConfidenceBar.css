@@ -1,0 +1,59 @@
+.confidence-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confidence-bar {
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.confidence-bar-small {
+  height: 4px;
+  min-width: 40px;
+}
+
+.confidence-bar-medium {
+  height: 6px;
+  min-width: 60px;
+}
+
+.confidence-bar-large {
+  height: 8px;
+  min-width: 80px;
+}
+
+.confidence-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.confidence-high {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.confidence-medium {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.confidence-low {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.confidence-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 30px;
+  text-align: right;
+}
+
+.confidence-container.compact .confidence-text {
+  font-size: 11px;
+  min-width: 25px;
+}

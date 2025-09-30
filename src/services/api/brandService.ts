@@ -1,84 +1,89 @@
-import { apiClient, USE_MOCK_DATA } from '../config/apiConfig'
-import type { BrandAsset, ApiResponse } from '@/types'
+import { apiClient } from '../config/apiConfig'
+import type {
+  ApiResponse,
+  BrandExtractResponse,
+  EditedBrandData
+} from '@/types'
+import { calculateWCAGContrast } from '@/utils/colorUtils'
 
-// Mock data for development
-const mockBrandAssets: BrandAsset = {
-  logos: [
-    { type: 'Primary Logo', format: 'SVG', url: '#' },
-    { type: 'Icon', format: 'PNG', url: '#' },
-    { type: 'Wordmark', format: 'SVG', url: '#' }
-  ],
-  colors: [
-    { hex: '#dc2626', name: 'Brand Red' },
-    { hex: '#1f2937', name: 'Dark Gray' },
-    { hex: '#f3f4f6', name: 'Light Gray' },
-    { hex: '#ffffff', name: 'White' }
-  ],
-  fonts: [
-    { family: 'Inter', category: 'Sans-serif', weight: '400, 500, 600' },
-    { family: 'Roboto', category: 'Sans-serif', weight: '400, 700' }
-  ]
-}
-
-export const extractBrandAssets = async (url: string): Promise<BrandAsset> => {
-  // Use mock data in development if no API is configured
-  if (USE_MOCK_DATA) {
-    await new Promise(resolve => setTimeout(resolve, 2000)) // Simulate API delay
-    return {
-      ...mockBrandAssets,
-      url,
-      name: new URL(url).hostname.replace('www.', '').split('.')[0]
-    }
-  }
-
+// Enhanced brand extraction with new API
+export const extractBrandData = async (url: string, includeScreenshot: boolean = true): Promise<BrandExtractResponse> => {
   try {
-    const response = await apiClient.post<ApiResponse<BrandAsset>>('/api/extract', { url })
+    const response = await apiClient.post<BrandExtractResponse>('/api/extract-brand', {
+      url,
+      includeScreenshot
+    })
 
-    if (response.data.success && response.data.data) {
-      return response.data.data
+    if (response.data.success && response.data.brand) {
+      // Fill in missing WCAG contrast data if needed
+      const enhancedBrand = {
+        ...response.data.brand,
+        colors: {
+          ...response.data.brand.colors,
+          palette: response.data.brand.colors.palette.map(color => ({
+            ...color,
+            wcagContrast: color.wcagContrast || calculateWCAGContrast(color.hex)
+          }))
+        }
+      }
+
+      return {
+        ...response.data,
+        brand: enhancedBrand
+      }
     }
 
-    throw new Error(response.data.error || 'Failed to extract brand assets')
-  } catch (error) {
+    throw new Error('Failed to extract brand data')
+  } catch (error: any) {
+    // Check if it's a connection error
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('ERR_CONNECTION_REFUSED')) {
+      throw new Error('API server is not available. Please ensure the backend server is running on port 3001.')
+    }
+
+    // Check for other common errors
+    if (error.response?.status === 404) {
+      throw new Error('Brand extraction endpoint not found. Please check the API configuration.')
+    }
+
+    if (error.response?.status === 500) {
+      throw new Error('Server error occurred while extracting brand data. Please try again.')
+    }
+
     console.error('Brand extraction error:', error)
-
-    // Fallback to mock data if API fails
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    return {
-      ...mockBrandAssets,
-      url,
-      name: new URL(url).hostname.replace('www.', '').split('.')[0]
-    }
+    throw new Error(error.response?.data?.message || 'Failed to extract brand data. Please try again.')
   }
 }
 
-export const saveBrandAssets = async (assets: BrandAsset): Promise<void> => {
-  if (USE_MOCK_DATA) {
-    localStorage.setItem('brandAssets', JSON.stringify(assets))
-    return
-  }
 
+// Save edited brand data
+export const saveEditedBrandData = async (editedData: EditedBrandData): Promise<void> => {
   try {
-    await apiClient.post('/api/brand/save', assets)
+    await apiClient.post('/api/brand/save-edited', editedData)
+    // Also save to local storage for persistence
+    localStorage.setItem('editedBrandData', JSON.stringify(editedData))
   } catch (error) {
-    console.error('Failed to save brand assets:', error)
+    console.error('Failed to save edited brand data:', error)
     // Save to local storage as fallback
-    localStorage.setItem('brandAssets', JSON.stringify(assets))
+    localStorage.setItem('editedBrandData', JSON.stringify(editedData))
+    throw error
   }
 }
 
-export const loadBrandAssets = async (): Promise<BrandAsset | null> => {
-  if (USE_MOCK_DATA) {
-    const saved = localStorage.getItem('brandAssets')
-    return saved ? JSON.parse(saved) : mockBrandAssets
-  }
-
+export const loadEditedBrandData = async (): Promise<EditedBrandData | null> => {
   try {
-    const response = await apiClient.get<ApiResponse<BrandAsset>>('/api/brand')
+    const response = await apiClient.get<ApiResponse<EditedBrandData>>('/api/brand/edited')
     return response.data.data || null
-  } catch (error) {
-    console.error('Failed to load brand assets:', error)
-    const saved = localStorage.getItem('brandAssets')
+  } catch (error: any) {
+    // Silently handle connection errors and use local storage
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('ERR_CONNECTION_REFUSED')) {
+      const saved = localStorage.getItem('editedBrandData')
+      return saved ? JSON.parse(saved) : null
+    }
+
+    console.error('Failed to load edited brand data from API:', error)
+    // Try to load from local storage as fallback
+    const saved = localStorage.getItem('editedBrandData')
     return saved ? JSON.parse(saved) : null
   }
 }
+

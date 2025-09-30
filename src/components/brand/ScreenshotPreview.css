@@ -1,0 +1,173 @@
+.screenshot-preview {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: var(--transition-base);
+}
+
+.screenshot-preview:hover {
+  border-color: var(--brand-red);
+  box-shadow: var(--shadow);
+}
+
+.screenshot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+}
+
+.screenshot-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.screenshot-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.control-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.screenshot-container {
+  position: relative;
+  height: 300px;
+  overflow: hidden;
+}
+
+.screenshot-preview.expanded .screenshot-container {
+  height: 600px;
+}
+
+.screenshot-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  scroll-behavior: smooth;
+}
+
+.screenshot-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  min-height: 100%;
+  object-fit: cover;
+  object-position: top;
+  transition: var(--transition-base);
+}
+
+.screenshot-preview.expanded .screenshot-image {
+  object-fit: contain;
+  width: auto;
+  max-width: 100%;
+}
+
+.screenshot-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.screenshot-url {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.screenshot-metadata {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.screenshot-size,
+.screenshot-strategy {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  opacity: 0.8;
+}
+
+.screenshot-timestamp {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* Scrollbar styling for screenshot */
+.screenshot-wrapper::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.screenshot-wrapper::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+.screenshot-wrapper::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.screenshot-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Error state */
+.screenshot-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 14px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.screenshot-error p {
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .screenshot-container {
+    height: 200px;
+  }
+
+  .screenshot-preview.expanded .screenshot-container {
+    height: 400px;
+  }
+
+  .screenshot-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}

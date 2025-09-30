@@ -1,13 +1,11 @@
 import { useState } from 'react'
-import type { BrandAsset } from '@/types'
-import { extractBrandAssets } from '@/services/api/brandService'
 import './BrandAssetExtractor.css'
 
 interface Props {
-  onAssetsExtracted: (assets: BrandAsset) => void
+  onBrandExtracted: (url: string) => void
 }
 
-const BrandAssetExtractor = ({ onAssetsExtracted }: Props) => {
+const BrandAssetExtractor = ({ onBrandExtracted }: Props) => {
   const [url, setUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -22,8 +20,7 @@ const BrandAssetExtractor = ({ onAssetsExtracted }: Props) => {
     setError('')
 
     try {
-      const assets = await extractBrandAssets(url)
-      onAssetsExtracted(assets)
+      await onBrandExtracted(url)
     } catch (err) {
       setError('Failed to extract brand assets. Please try again.')
       console.error('Extraction error:', err)
