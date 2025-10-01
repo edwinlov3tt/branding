@@ -1,4 +1,5 @@
 import { apiClient } from '../config/apiConfig'
+import axios from 'axios'
 import type {
   ApiResponse,
   BrandExtractResponse,
@@ -6,6 +7,19 @@ import type {
   DiscoverPagesResponse
 } from '@/types'
 import { calculateWCAGContrast } from '@/utils/colorUtils'
+
+// Health check for the external API
+export const checkExternalApiHealth = async (): Promise<boolean> => {
+  try {
+    const response = await axios.get('https://gtm.edwinlovett.com/api/health', {
+      timeout: 5000
+    });
+    return response.data.status === 'OK';
+  } catch (error) {
+    console.error('External API health check failed:', error);
+    return false;
+  }
+}
 
 // Enhanced brand extraction with new API
 export const extractBrandData = async (url: string, includeScreenshot: boolean = true): Promise<BrandExtractResponse> => {
@@ -36,11 +50,6 @@ export const extractBrandData = async (url: string, includeScreenshot: boolean =
 
     throw new Error('Failed to extract brand data')
   } catch (error: any) {
-    // Check if it's a connection error
-    if (error.code === 'ERR_NETWORK' || error.message?.includes('ERR_CONNECTION_REFUSED')) {
-      throw new Error('API server is not available. Please ensure the backend server is running on port 3001.')
-    }
-
     // Check for other common errors
     if (error.response?.status === 404) {
       throw new Error('Brand extraction endpoint not found. Please check the API configuration.')
@@ -48,6 +57,10 @@ export const extractBrandData = async (url: string, includeScreenshot: boolean =
 
     if (error.response?.status === 500) {
       throw new Error('Server error occurred while extracting brand data. Please try again.')
+    }
+
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('ERR_CONNECTION_REFUSED')) {
+      throw new Error('Unable to connect to brand extraction service. Please check your internet connection and try again.')
     }
 
     console.error('Brand extraction error:', error)
@@ -122,11 +135,6 @@ export const discoverBrandPages = async (
 
     return response.data;
   } catch (error: any) {
-    // Check if it's a connection error
-    if (error.code === 'ERR_NETWORK' || error.message?.includes('ERR_CONNECTION_REFUSED')) {
-      throw new Error('API server is not available. Please ensure the backend server is running on port 3001.');
-    }
-
     // Check for other common errors
     if (error.response?.status === 404) {
       throw new Error('Page discovery endpoint not found. Please check the API configuration.');
@@ -134,6 +142,10 @@ export const discoverBrandPages = async (
 
     if (error.response?.status === 500) {
       throw new Error('Server error occurred while discovering pages. Please try again.');
+    }
+
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('ERR_CONNECTION_REFUSED')) {
+      throw new Error('Unable to connect to page discovery service. Please check your internet connection and try again.');
     }
 
     throw error;

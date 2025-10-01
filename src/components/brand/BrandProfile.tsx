@@ -12,7 +12,7 @@ import type {
   BrandData,
   EditedBrandData
 } from '@/types'
-import { extractBrandData, saveEditedBrandData, loadEditedBrandData } from '@/services/api/brandService'
+import { extractBrandData, saveEditedBrandData, loadEditedBrandData, checkExternalApiHealth } from '@/services/api/brandService'
 import { loadGoogleFonts } from '@/utils/fontUtils'
 import './BrandProfile.css'
 import './ConfidenceBar.css'
@@ -47,12 +47,9 @@ const BrandProfile = () => {
 
   const checkApiStatus = async () => {
     try {
-      const response = await fetch('http://localhost:3001/health', {
-        method: 'GET',
-        mode: 'cors'
-      }).catch(() => null)
-
-      if (response && response.ok) {
+      // Check the external API (gtm.edwinlovett.com) instead of localhost
+      const isHealthy = await checkExternalApiHealth();
+      if (isHealthy) {
         setApiStatus('connected')
       } else {
         setApiStatus('disconnected')
@@ -214,7 +211,7 @@ const BrandProfile = () => {
       {apiStatus === 'disconnected' && (
         <div className="api-status-banner disconnected">
           <WifiOff size={18} />
-          <span>API server is offline. Please ensure the backend server is running on port 3001.</span>
+          <span>Brand extraction API is currently offline. Please try again later.</span>
           <button
             className="retry-button"
             onClick={() => {
@@ -492,12 +489,6 @@ const BrandProfile = () => {
         <div className="error-message">
           <AlertCircle size={18} />
           <span>{error}</span>
-          {error.includes('API server') && (
-            <div className="error-help">
-              <p>To start the backend server:</p>
-              <code>cd backend && npm start</code>
-            </div>
-          )}
         </div>
       )}
 
