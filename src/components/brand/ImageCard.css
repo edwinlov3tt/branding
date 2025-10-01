@@ -1,38 +1,17 @@
-.logo-preview {
+.image-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   transition: var(--transition-base);
-  min-width: 240px;
 }
 
-.logo-preview:hover {
+.image-card:hover {
   border-color: var(--brand-red);
   box-shadow: var(--shadow);
 }
 
-.logo-preview.primary {
-  border-color: var(--brand-red);
-  box-shadow: 0 0 0 1px var(--brand-red);
-}
-
-.logo-preview.small {
-  min-width: 240px;
-  max-width: 280px;
-}
-
-.logo-preview.medium {
-  min-width: 280px;
-  max-width: 320px;
-}
-
-.logo-preview.large {
-  min-width: 320px;
-  max-width: 400px;
-}
-
-.logo-header {
+.image-card-header {
   padding: 8px 12px;
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border);
@@ -43,7 +22,7 @@
   flex-wrap: nowrap;
 }
 
-.logo-info {
+.image-info {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -52,25 +31,21 @@
   white-space: nowrap;
 }
 
-.primary-badge {
-  background: var(--brand-red);
-  color: var(--text-primary);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 500;
-  font-size: 10px;
-}
-
-.logo-score {
+.image-score {
   color: var(--text-primary);
   font-weight: 500;
 }
 
-.logo-dimensions {
+.image-dimensions {
   color: var(--text-secondary);
 }
 
-.logo-controls {
+.image-size {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.image-controls {
   display: flex;
   gap: 4px;
   align-items: center;
@@ -95,39 +70,34 @@
   background: var(--bg-primary);
 }
 
-.background-button:hover {
-  color: var(--brand-red);
-  background: rgba(220, 38, 38, 0.1);
-}
-
 .remove-button:hover {
   color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
 }
 
-.logo-container {
-  height: 120px;
+.image-container {
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: background-color 0.3s ease;
+  background: var(--bg-primary);
+  padding: 16px;
 }
 
-
-.large .logo-container {
-  height: 160px;
-}
-
-.logo-loading,
-.logo-error {
+.image-loading,
+.image-error {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: currentColor;
+  color: var(--text-secondary);
   font-size: 12px;
+}
+
+.image-error {
+  color: var(--text-secondary);
 }
 
 .loading-spinner {
@@ -154,79 +124,31 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-.logo-image {
+.image-preview {
   transition: opacity 0.3s ease;
   opacity: 0;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
-.logo-image.loaded {
+.image-preview.loaded {
   opacity: 1;
 }
 
-.logo-colors {
+.image-footer {
   padding: 8px 12px;
+  background: var(--bg-tertiary);
   border-top: 1px solid var(--border);
-  background: var(--bg-tertiary);
 }
 
-.colors-label {
-  font-size: 11px;
+.image-alt {
+  font-size: 12px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
   display: block;
-}
-
-.color-chips {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.color-chip {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: var(--transition-base);
-}
-
-.color-chip:hover {
-  transform: scale(1.1);
-  border-color: var(--text-primary);
-}
-
-.more-colors {
-  font-size: 11px;
-  color: var(--text-secondary);
-  margin-left: 4px;
-}
-
-/* Logo Grid Styles */
-.logo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.logo-more {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  border: 2px dashed var(--border);
-  border-radius: var(--radius);
-  padding: 40px 20px;
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 500;
-  transition: var(--transition-base);
-}
-
-.logo-more:hover {
-  border-color: var(--brand-red);
-  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @keyframes spin {

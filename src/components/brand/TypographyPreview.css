@@ -206,6 +206,7 @@
   padding: 8px 12px;
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
   font-size: 12px;
 }
 

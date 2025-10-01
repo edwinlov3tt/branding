@@ -17,3 +17,8 @@
   padding: 32px;
   background: var(--bg-primary);
 }
+
+/* No sidebar styles */
+.app-container.no-sidebar .main-content {
+  width: 100%;
+}

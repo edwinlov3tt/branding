@@ -231,6 +231,67 @@ export interface AIModel {
   avatarUrl?: string;
 }
 
+// Page Discovery Types
+export interface PageImage {
+  url: string;
+  source: string;
+  finalScore: number;
+  width?: number;
+  height?: number;
+  alt?: string;
+  validated: boolean;
+  contentType: string;
+  size: number;
+  context?: string;
+}
+
+export interface DiscoveredPage {
+  url: string;
+  relevanceScore: number;
+  category: string;
+  reason: string;
+  title: string;
+  headings: string[];
+  textContent?: string;
+  wordCount: number;
+  images?: PageImage[];
+  imageCount: number;
+  scrapedAt: string;
+  fetchMethod?: string;
+}
+
+export interface DiscoveryMetadata {
+  totalPagesFound: number;
+  sitemapsAnalyzed: string[];
+  aiModel: string;
+  analysisTime: string;
+  scrapingEnabled: boolean;
+}
+
+export interface DiscoveryInsights {
+  recommendedForAnalysis: string[];
+  totalWordCount: number;
+  successfulScrapes: number;
+  coverage: {
+    hasCompanyOverview: boolean;
+    hasMission: boolean;
+    hasServices: boolean;
+    hasTeam: boolean;
+    hasAwards: boolean;
+    hasServiceArea: boolean;
+    hasPortfolio: boolean;
+  };
+}
+
+export interface DiscoverPagesResponse {
+  success: boolean;
+  url: string;
+  timestamp: string;
+  discoveryMetadata: DiscoveryMetadata;
+  pages: DiscoveredPage[];
+  insights: DiscoveryInsights;
+}
+
 // API Response Types
 export interface ApiResponse<T> {
   success: boolean;

@@ -1,34 +1,70 @@
 .brand-profile {
-  padding: 24px;
-  max-width: 1400px;
+  padding: 0;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
 .section {
-  margin-bottom: 48px;
+  margin-bottom: 32px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: 0;
+  overflow: hidden;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  padding: 16px 24px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
   gap: 16px;
 }
 
 .section-title {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Standalone section title (without header) */
+.section > h2.section-title:first-child {
+  padding: 16px 24px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  margin: 0;
+}
+
+/* Content area padding */
+.section-content {
+  padding: 24px;
+}
+
+/* Direct children default padding */
+.section > .colors-grid {
+  padding: 24px;
+}
+
+.section > .logos-section,
+.section > .typography-section {
+  padding: 0 24px 24px 24px;
+}
+
+.section > .favicons-grid {
+  padding: 0 24px 24px 24px;
+}
+
+.section > .analysis-footnote {
+  margin: 0 24px 24px 24px;
+  padding: 12px;
 }
 
 .section-actions {
@@ -134,7 +170,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
-  margin-bottom: 16px;
 }
 
 .summary-item {
@@ -215,7 +250,35 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
-  margin-bottom: 16px;
+  max-width: 100%;
+}
+
+/* Ensure max 4 columns on larger screens */
+@media (min-width: 1200px) {
+  .colors-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* 3 columns on medium screens */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .colors-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 2 columns on smaller screens */
+@media (min-width: 600px) and (max-width: 899px) {
+  .colors-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 1 column on mobile */
+@media (max-width: 599px) {
+  .colors-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .analysis-footnote {
@@ -229,16 +292,14 @@
 
 /* Typography Sections */
 .typography-section {
-  margin-bottom: 32px;
+  /* Typography section styles */
 }
 
 .subsection-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--border);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 24px 0 16px 0;
 }
 
 .headings-table {
@@ -249,7 +310,7 @@
 
 /* Logos Sections */
 .logos-section {
-  margin-bottom: 32px;
+  /* Logos section styles */
 }
 
 .favicons-grid {

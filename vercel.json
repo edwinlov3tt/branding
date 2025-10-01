@@ -2,19 +2,27 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/extract-brand",
+      "destination": "/api/extract-brand"
+    },
+    {
+      "source": "/api/discover-brand-pages",
+      "destination": "/api/discover-brand-pages"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    },
     {
       "source": "/(.*)",
       "destination": "/"
     }
-  ],
-  "env": {
-    "VITE_API_BASE_URL": "@api_base_url",
-    "VITE_CLAUDE_API_KEY": "@claude_api_key",
-    "VITE_CLAUDE_MODEL": "@claude_model",
-    "VITE_OPENAI_API_KEY": "@openai_api_key",
-    "VITE_CORS_PROXY_URL": "@cors_proxy_url",
-    "VITE_BRAND_EXTRACTOR_API": "@brand_extractor_api",
-    "VITE_ENV": "production"
-  }
+  ]
 }

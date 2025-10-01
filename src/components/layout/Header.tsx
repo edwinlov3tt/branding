@@ -7,7 +7,7 @@ const Header = () => {
   const getPageTitle = () => {
     const path = location.pathname.substring(1)
     const titles: Record<string, string> = {
-      brand: 'Brand Profile',
+      brand: 'Branding AI',
       personas: 'Customer Personas',
       competitors: 'Competitor Analysis',
       inspiration: 'Inspiration Library',
@@ -15,15 +15,16 @@ const Header = () => {
       models: 'AI Models & Actors',
       settings: 'Settings',
     }
-    return titles[path] || 'Brand Intelligence Platform'
+    return titles[path] || 'Branding AI'
   }
 
   return (
     <header className="header">
-      <h1 className="page-title">{getPageTitle()}</h1>
-      <div className="header-actions">
-        <button className="button button-secondary">Export</button>
-        <button className="button button-primary">Generate</button>
+      <div className="header-content">
+        <div className="brand-header">
+          <h1 className="page-title">{getPageTitle()}</h1>
+          <p className="tagline">AI-Powered brand details and assets from just a link</p>
+        </div>
       </div>
     </header>
   )

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Save, Undo2, Download, AlertCircle, CheckCircle, WifiOff } from 'lucide-react'
+import { Save, Undo2, Download, AlertCircle, WifiOff } from 'lucide-react'
 import BrandAssetExtractor from './BrandAssetExtractor'
 import ColorSwatch from './ColorSwatch'
 import TypographyPreview, { HeadingPreview } from './TypographyPreview'
 import LogoPreview, { LogoGrid } from './LogoPreview'
 import ConfidenceBar from './ConfidenceBar'
 import ScreenshotPreview from './ScreenshotPreview'
+import ImageAssets from './ImageAssets'
 import type {
   BrandExtractResponse,
   BrandData,
@@ -209,7 +210,7 @@ const BrandProfile = () => {
 
   return (
     <div className="brand-profile">
-      {/* API Status Banner */}
+      {/* API Status Banner - Only show when disconnected */}
       {apiStatus === 'disconnected' && (
         <div className="api-status-banner disconnected">
           <WifiOff size={18} />
@@ -226,13 +227,6 @@ const BrandProfile = () => {
         </div>
       )}
 
-      {apiStatus === 'connected' && (
-        <div className="api-status-banner connected">
-          <CheckCircle size={18} />
-          <span>API server connected</span>
-        </div>
-      )}
-
       {/* Extraction Section */}
       <div className="section">
         <div className="section-header">
@@ -243,27 +237,30 @@ const BrandProfile = () => {
                 <span>Unsaved changes</span>
               </div>
             )}
-            <div className={`api-indicator ${apiStatus}`}>
-              {apiStatus === 'checking' && <span>Checking API...</span>}
-              {apiStatus === 'connected' && <CheckCircle size={16} />}
-              {apiStatus === 'disconnected' && <WifiOff size={16} />}
-            </div>
+            {apiStatus === 'disconnected' && (
+              <div className={`api-indicator ${apiStatus}`}>
+                <WifiOff size={16} />
+              </div>
+            )}
           </div>
         </div>
-        <BrandAssetExtractor
-          onBrandExtracted={handleBrandExtracted}
-        />
+        <div className="section-content">
+          <BrandAssetExtractor
+            onBrandExtracted={handleBrandExtracted}
+          />
+        </div>
       </div>
 
       {/* Summary Section */}
-      {extractResponse?.summary && (
+      {extractResponse?.summary && extractResponse.summary.primaryColor && (
         <div className="section">
           <h2 className="section-title">Brand Summary</h2>
-          <div className="brand-summary">
-            <div className="summary-item">
-              <div
-                className="summary-color-swatch"
-                style={{ backgroundColor: extractResponse.summary.primaryColor.hex }}
+          <div className="section-content">
+            <div className="brand-summary">
+              <div className="summary-item">
+                <div
+                  className="summary-color-swatch"
+                  style={{ backgroundColor: extractResponse.summary.primaryColor.hex }}
               />
               <div className="summary-info">
                 <span className="summary-label">Primary Color</span>
@@ -321,6 +318,7 @@ const BrandProfile = () => {
               />
             </div>
           </div>
+          </div>
         </div>
       )}
 
@@ -328,10 +326,60 @@ const BrandProfile = () => {
       {brandData?.screenshot && (brandData.screenshot.url || brandData.screenshot.data) && (
         <div className="section">
           <h2 className="section-title">Website Screenshot</h2>
-          <ScreenshotPreview
-            screenshot={brandData.screenshot}
-            url={brandData.url}
-          />
+          <div className="section-content">
+            <ScreenshotPreview
+              screenshot={brandData.screenshot}
+              url={brandData.url}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Logos Section */}
+      {brandData && brandData.logos && brandData.logos.primary && (
+        <div className="section">
+          <h2 className="section-title">Logos</h2>
+
+          <div className="logos-section">
+            <h3 className="subsection-title">Primary Logo</h3>
+            <LogoPreview
+              logo={brandData.logos.primary}
+              logoColors={brandData.logos.logoColors || []}
+              isPrimary={true}
+              onRemove={handleLogoRemove}
+              size="large"
+            />
+          </div>
+
+          {brandData.logos.alternates && brandData.logos.alternates.length > 0 && (
+            <div className="logos-section">
+              <h3 className="subsection-title">Alternative Logos</h3>
+              <LogoGrid
+                logos={getVisibleLogos().slice(1)}
+                logoColors={brandData.logos.logoColors || []}
+                onRemove={handleLogoRemove}
+              />
+            </div>
+          )}
+
+          {brandData.logos.favicons && brandData.logos.favicons.length > 0 && (
+            <div className="logos-section">
+              <h3 className="subsection-title">Favicons</h3>
+              <div className="favicons-grid">
+                {brandData.logos.favicons
+                  .filter(favicon => !editedData.removed.logos.includes(favicon.src))
+                  .map((favicon, index) => (
+                    <LogoPreview
+                      key={`favicon-${index}`}
+                      logo={favicon}
+                      logoColors={brandData.logos.logoColors}
+                      onRemove={handleLogoRemove}
+                      size="small"
+                    />
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -429,51 +477,13 @@ const BrandProfile = () => {
         </div>
       )}
 
-      {/* Logos Section */}
+      {/* Images & Assets Section */}
       {brandData && (
         <div className="section">
-          <h2 className="section-title">Logos</h2>
-
-          <div className="logos-section">
-            <h3 className="subsection-title">Primary Logo</h3>
-            <LogoPreview
-              logo={brandData.logos.primary}
-              logoColors={brandData.logos.logoColors}
-              isPrimary={true}
-              onRemove={handleLogoRemove}
-              size="large"
-            />
+          <h2 className="section-title">Images & Assets</h2>
+          <div className="section-content">
+            <ImageAssets url={brandData.url} />
           </div>
-
-          {brandData.logos.alternates && brandData.logos.alternates.length > 0 && (
-            <div className="logos-section">
-              <h3 className="subsection-title">Alternative Logos</h3>
-              <LogoGrid
-                logos={getVisibleLogos().slice(1)}
-                logoColors={brandData.logos.logoColors}
-                onRemove={handleLogoRemove}
-              />
-            </div>
-          )}
-
-          {brandData.logos.favicons && brandData.logos.favicons.length > 0 && (
-            <div className="logos-section">
-              <h3 className="subsection-title">Favicons</h3>
-              <div className="favicons-grid">
-                {brandData.logos.favicons
-                  .filter(favicon => !editedData.removed.logos.includes(favicon.src))
-                  .map((favicon, index) => (
-                    <LogoPreview
-                      key={`favicon-${index}`}
-                      logo={favicon}
-                      logoColors={brandData.logos.logoColors}
-                      onRemove={handleLogoRemove}
-                      size="small"
-                    />
-                  ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 

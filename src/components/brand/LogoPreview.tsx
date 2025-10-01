@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { X, Download, ExternalLink } from 'lucide-react';
+import { X, Download, ExternalLink, Palette } from 'lucide-react';
 import type { LogoItem, LogoColor } from '@/types';
-import { detectLogoBackgroundColor, getBestContrastColor } from '@/utils/colorUtils';
+import { detectLogoBackgroundColor, getBestContrastColor, getOptimalLogoBackgrounds } from '@/utils/colorUtils';
 import './LogoPreview.css';
 
 interface LogoPreviewProps {
@@ -23,9 +23,23 @@ const LogoPreview = ({
 }: LogoPreviewProps) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [backgroundMode, setBackgroundMode] = useState<'auto' | 'light' | 'dark' | 'neutral'>('auto');
 
-  const backgroundHex = detectLogoBackgroundColor(logoColors.map(c => c.hex));
+  // Return early if logo is null or invalid
+  if (!logo || !logo.src) {
+    return null;
+  }
+
+  const backgrounds = getOptimalLogoBackgrounds(logoColors.map(c => c.hex));
+  const backgroundHex = backgrounds[backgroundMode];
   const contrastColor = getBestContrastColor(backgroundHex);
+
+  const cycleBackground = () => {
+    const modes: Array<'auto' | 'light' | 'dark' | 'neutral'> = ['auto', 'light', 'dark', 'neutral'];
+    const currentIndex = modes.indexOf(backgroundMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setBackgroundMode(modes[nextIndex]);
+  };
 
   const handleImageLoad = () => {
     setImageLoaded(true);
@@ -71,6 +85,14 @@ const LogoPreview = ({
 
         {showControls && (
           <div className="logo-controls">
+            <button
+              className="control-button background-button"
+              onClick={cycleBackground}
+              title={`Background: ${backgroundMode}`}
+              aria-label="Toggle background color"
+            >
+              <Palette size={14} />
+            </button>
             <button
               className="control-button download-button"
               onClick={handleDownload}

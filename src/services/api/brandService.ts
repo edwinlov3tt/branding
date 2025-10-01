@@ -2,7 +2,8 @@ import { apiClient } from '../config/apiConfig'
 import type {
   ApiResponse,
   BrandExtractResponse,
-  EditedBrandData
+  EditedBrandData,
+  DiscoverPagesResponse
 } from '@/types'
 import { calculateWCAGContrast } from '@/utils/colorUtils'
 
@@ -84,6 +85,58 @@ export const loadEditedBrandData = async (): Promise<EditedBrandData | null> => 
     // Try to load from local storage as fallback
     const saved = localStorage.getItem('editedBrandData')
     return saved ? JSON.parse(saved) : null
+  }
+}
+
+// Discover brand pages with images
+export const discoverBrandPages = async (
+  url: string,
+  options: {
+    maxPages?: number;
+    includeScraping?: boolean;
+    includeImages?: boolean;
+    maxImagesPerPage?: number;
+  } = {}
+): Promise<DiscoverPagesResponse> => {
+  const {
+    maxPages = 10,
+    includeScraping = false,
+    includeImages = true,
+    maxImagesPerPage = 8
+  } = options;
+
+  try {
+    const response = await apiClient.post<DiscoverPagesResponse>('/api/discover-brand-pages', {
+      url,
+      maxPages,
+      includeScraping,
+      includeImages,
+      maxImagesPerPage
+    }, {
+      timeout: 60000 // 60 second timeout for this longer operation
+    });
+
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to discover brand pages');
+    }
+
+    return response.data;
+  } catch (error: any) {
+    // Check if it's a connection error
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('ERR_CONNECTION_REFUSED')) {
+      throw new Error('API server is not available. Please ensure the backend server is running on port 3001.');
+    }
+
+    // Check for other common errors
+    if (error.response?.status === 404) {
+      throw new Error('Page discovery endpoint not found. Please check the API configuration.');
+    }
+
+    if (error.response?.status === 500) {
+      throw new Error('Server error occurred while discovering pages. Please try again.');
+    }
+
+    throw error;
   }
 }
 

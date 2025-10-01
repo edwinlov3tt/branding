@@ -50,18 +50,16 @@ export function isSystemFont(fontFamily: string): boolean {
 export function generateFontStack(fontFamily: string, category?: string): string {
   const cleanFamily = fontFamily.trim();
 
-  if (isSystemFont(cleanFamily)) {
-    return cleanFamily;
-  }
+  // Always wrap font names with spaces in quotes
+  const quotedFamily = cleanFamily.includes(' ') ? `"${cleanFamily}"` : cleanFamily;
 
+  // For Roboto and other common fonts, always include them first, then fallbacks
   const fallbacks = category && FALLBACK_STACKS[category as keyof typeof FALLBACK_STACKS]
     ? FALLBACK_STACKS[category as keyof typeof FALLBACK_STACKS]
     : FALLBACK_STACKS['sans-serif'];
 
-  return [
-    cleanFamily.includes(' ') ? `"${cleanFamily}"` : cleanFamily,
-    ...fallbacks,
-  ].join(', ');
+  // Always include the requested font first, even if it's a system font
+  return [quotedFamily, ...fallbacks].join(', ');
 }
 
 export function generateGoogleFontsUrl(fonts: FontData[]): string {
@@ -89,7 +87,8 @@ export function loadGoogleFonts(fontLinks: Record<string, FontLink>): Promise<vo
 
 export function loadFont(family: string, url?: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (isSystemFont(family)) {
+    // Skip loading for true system fonts, but load Roboto from Google Fonts
+    if (isSystemFont(family) && family.toLowerCase() !== 'roboto') {
       resolve();
       return;
     }
@@ -97,7 +96,7 @@ export function loadFont(family: string, url?: string): Promise<void> {
     if (!url) {
       const generatedUrl = generateGoogleFontsUrl([{
         family,
-        weights: ['400'],
+        weights: ['400', '500', '700'],
         avgSize: 16,
         coverage: '0%',
         confidence: 0,

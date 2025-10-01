@@ -1,7 +1,5 @@
 .extractor {
-  background: var(--bg-secondary);
-  border-radius: var(--radius);
-  padding: 24px;
+  /* Extractor component doesn't need its own container padding */
 }
 
 .extractor-input-group {

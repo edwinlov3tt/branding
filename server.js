@@ -88,6 +88,80 @@ app.post('/api/extract-brand', async (req, res) => {
   }
 });
 
+// Discover brand pages endpoint
+app.post('/api/discover-brand-pages', async (req, res) => {
+  try {
+    const {
+      url,
+      maxPages = 10,
+      includeScraping = false,
+      includeImages = true,
+      maxImagesPerPage = 8
+    } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'URL is required'
+      });
+    }
+
+    // Validate URL
+    try {
+      new URL(url);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid URL format. Please provide a valid URL (e.g., https://example.com)'
+      });
+    }
+
+    console.log(`🔍 Discovering brand pages for: ${url} (maxPages: ${maxPages}, images: ${includeImages})`);
+
+    // Call the real API
+    const response = await axios.post('https://gtm.edwinlovett.com/api/discover-brand-pages', {
+      url,
+      maxPages,
+      includeScraping,
+      includeImages,
+      maxImagesPerPage
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Branding-App/1.0'
+      },
+      timeout: 60000 // 60 second timeout for this longer operation
+    });
+
+    console.log(`✅ Page discovery completed for: ${new URL(url).hostname}`);
+
+    // Return the real API response
+    res.json(response.data);
+
+  } catch (error) {
+    console.error('Page discovery error:', error.message);
+
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      return res.status(503).json({
+        success: false,
+        error: 'Page discovery service is currently unavailable. Please try again later.'
+      });
+    }
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        error: error.response.data?.error || 'Failed to discover brand pages'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'An unexpected error occurred while discovering brand pages'
+    });
+  }
+});
+
 // Save edited brand data endpoint
 app.post('/api/brand/save-edited', (req, res) => {
   try {
@@ -141,6 +215,7 @@ app.listen(PORT, () => {
   console.log('📍 Available endpoints:');
   console.log('   GET  /health - Health check');
   console.log('   POST /api/extract-brand - Extract brand from URL');
+  console.log('   POST /api/discover-brand-pages - Discover brand pages with images');
   console.log('   POST /api/brand/save-edited - Save edited brand data');
   console.log('   GET  /api/brand/edited - Load edited brand data');
 });

@@ -100,14 +100,46 @@ export function getBestContrastColor(hex: string): string {
 }
 
 export function detectLogoBackgroundColor(logoColors: string[]): string {
-  if (!logoColors.length) return '#f8f9fa';
+  // Default to a neutral gray that works with most logos
+  if (!logoColors.length) return '#2a2a2a';
 
-  const avgLuminance = logoColors.reduce((sum, color) => {
-    const rgb = hexToRgb(color);
-    return sum + getLuminance(rgb);
+  // Calculate weighted average luminance (more frequent colors have more weight)
+  const totalFrequency = logoColors.length;
+  const avgLuminance = logoColors.reduce((sum, color, index) => {
+    try {
+      const rgb = hexToRgb(color);
+      // Weight by position (earlier colors are usually more dominant)
+      const weight = (totalFrequency - index) / totalFrequency;
+      return sum + (getLuminance(rgb) * weight);
+    } catch {
+      return sum;
+    }
   }, 0) / logoColors.length;
 
-  return avgLuminance > 0.5 ? '#1a1a1a' : '#f8f9fa';
+  // If logo is mostly light colors, use dark background
+  // If logo is mostly dark colors, use light background
+  // Use mid-gray for mixed logos
+  if (avgLuminance > 0.7) {
+    return '#1a1a1a'; // Dark background for very light logos
+  } else if (avgLuminance < 0.3) {
+    return '#f8f9fa'; // Light background for very dark logos
+  } else {
+    return '#4a4a4a'; // Mid-gray for mixed/colorful logos
+  }
+}
+
+export function getOptimalLogoBackgrounds(logoColors: string[]): {
+  auto: string;
+  light: string;
+  dark: string;
+  neutral: string;
+} {
+  return {
+    auto: detectLogoBackgroundColor(logoColors),
+    light: '#ffffff',
+    dark: '#1a1a1a',
+    neutral: '#4a4a4a'
+  };
 }
 
 export function isColorDark(hex: string): boolean {

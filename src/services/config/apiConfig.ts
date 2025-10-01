@@ -1,7 +1,10 @@
 import axios from 'axios'
 
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+// In production (Vercel), use relative URLs to call the API functions
+// In development, use the local server
+const isProduction = import.meta.env.PROD;
+export const API_BASE_URL = isProduction ? '' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001')
 export const CLAUDE_API_KEY = import.meta.env.VITE_CLAUDE_API_KEY || ''
 export const CLAUDE_MODEL = import.meta.env.VITE_CLAUDE_MODEL || 'claude-3-opus-20240229'
 export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || ''
