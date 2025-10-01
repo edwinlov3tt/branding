@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Download, ExternalLink, Palette } from 'lucide-react';
 import type { LogoItem, LogoColor } from '@/types';
-import { detectLogoBackgroundColor, getBestContrastColor, getOptimalLogoBackgrounds } from '@/utils/colorUtils';
+import { getBestContrastColor, getOptimalLogoBackgrounds } from '@/utils/colorUtils';
 import './LogoPreview.css';
 
 interface LogoPreviewProps {

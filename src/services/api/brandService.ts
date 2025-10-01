@@ -117,7 +117,7 @@ export const discoverBrandPages = async (
     });
 
     if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to discover brand pages');
+      throw new Error('Failed to discover brand pages');
     }
 
     return response.data;

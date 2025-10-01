@@ -33,3 +33,4 @@ dist-ssr
 *.bak
 index.html.bak
 CLAUDE.md.bak
+.vercel
