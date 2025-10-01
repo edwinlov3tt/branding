@@ -7,6 +7,9 @@
       "maxDuration": 60
     }
   },
+  "github": {
+    "silent": false
+  },
   "rewrites": [
     {
       "source": "/api/extract-brand",
