@@ -68,54 +68,81 @@ export const extractBrandDataEnhanced = async (
       const decoder = new TextDecoder();
       let buffer = '';
       let finalResult: any = null;
+      let hasReceivedComplete = false;
 
       while (true) {
         const { done, value } = await reader.read();
 
         if (done) {
+          // Process any remaining buffer
+          if (buffer.trim()) {
+            console.log('Stream ended with remaining buffer:', buffer);
+          }
           break;
         }
 
         // Decode the chunk and add to buffer
         buffer += decoder.decode(value, { stream: true });
 
-        // Process complete SSE messages
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        // Process complete SSE messages (events are separated by double newlines)
+        const messages = buffer.split('\n\n');
 
-        let currentEvent = '';
-        let currentData = '';
+        // Keep the last incomplete message in buffer
+        buffer = messages.pop() || '';
 
-        for (const line of lines) {
-          if (line.startsWith('event:')) {
-            currentEvent = line.substring(6).trim();
-          } else if (line.startsWith('data:')) {
-            currentData = line.substring(5).trim();
+        for (const message of messages) {
+          if (!message.trim()) continue;
 
-            if (currentEvent && currentData) {
-              try {
-                const data = JSON.parse(currentData);
+          const lines = message.split('\n');
+          let currentEvent = '';
+          let currentData = '';
 
-                // Call progress callback
-                if (onProgress) {
-                  onProgress({ event: currentEvent, data });
-                }
+          for (const line of lines) {
+            if (line.startsWith('event:')) {
+              currentEvent = line.substring(6).trim();
+            } else if (line.startsWith('data:')) {
+              currentData = line.substring(5).trim();
+            }
+          }
 
-                // Store final result
-                if (currentEvent === 'complete' && data.result) {
-                  finalResult = data.result;
-                }
+          if (currentEvent && currentData) {
+            try {
+              const data = JSON.parse(currentData);
 
-                // Reset for next event
-                currentEvent = '';
-                currentData = '';
-              } catch (e) {
-                console.error('Failed to parse SSE data:', e);
+              console.log(`[SSE ${currentEvent}]`, data);
+
+              // Call progress callback
+              if (onProgress) {
+                onProgress({ event: currentEvent, data });
               }
+
+              // Store final result and mark as complete
+              if (currentEvent === 'complete' && data.result) {
+                finalResult = data.result;
+                hasReceivedComplete = true;
+              }
+
+              // Handle error events
+              if (currentEvent === 'error') {
+                reject(new Error(data.message || 'Analysis failed'));
+                return;
+              }
+            } catch (e) {
+              console.error('Failed to parse SSE data:', e, 'Raw data:', currentData);
             }
           }
         }
+
+        // If we received the complete event, we can break early
+        if (hasReceivedComplete && finalResult) {
+          console.log('Received complete event, finishing stream...');
+          // Continue reading to gracefully close the stream
+          break;
+        }
       }
+
+      // Close the reader
+      await reader.cancel();
 
       // Process the final result
       if (finalResult && finalResult.success && finalResult.brand) {
