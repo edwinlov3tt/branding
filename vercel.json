@@ -3,10 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "functions": {
-    "api/*.js": {
-      "maxDuration": 60
-    },
-    "api/analyze-brand-enhanced.js": {
+    "api/**/*.js": {
       "maxDuration": 120
     }
   },
