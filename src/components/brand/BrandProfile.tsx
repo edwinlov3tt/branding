@@ -12,7 +12,8 @@ import type {
   BrandData,
   EditedBrandData
 } from '@/types'
-import { extractBrandData, saveEditedBrandData, loadEditedBrandData, checkExternalApiHealth } from '@/services/api/brandService'
+import { saveEditedBrandData, loadEditedBrandData, checkExternalApiHealth } from '@/services/api/brandService'
+import { extractBrandDataEnhanced, type SSEEvent } from '@/services/api/enhancedBrandService'
 import { loadGoogleFonts } from '@/utils/fontUtils'
 import './BrandProfile.css'
 import './ConfidenceBar.css'
@@ -33,6 +34,8 @@ const BrandProfile = () => {
   const [error, setError] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking')
+  const [extractionProgress, setExtractionProgress] = useState(0)
+  const [extractionMessage, setExtractionMessage] = useState('')
 
   useEffect(() => {
     // Check API status on mount
@@ -68,16 +71,45 @@ const BrandProfile = () => {
   const handleBrandExtracted = async (url: string) => {
     setIsLoading(true)
     setError('')
+    setExtractionProgress(0)
+    setExtractionMessage('Starting enhanced brand analysis...')
 
     try {
-      const response = await extractBrandData(url, true)
+      const response = await extractBrandDataEnhanced(
+        url,
+        {
+          maxPages: 10,
+          includeScreenshots: true,
+          includeScraping: false,
+          includeImages: false
+        },
+        (event: SSEEvent) => {
+          // Update progress based on SSE events
+          if (event.data.progress !== undefined) {
+            setExtractionProgress(event.data.progress)
+          }
+          if (event.data.message) {
+            setExtractionMessage(event.data.message)
+          }
+
+          // Log interesting events
+          console.log(`[${event.event}]`, event.data)
+        }
+      )
+
       setExtractResponse(response)
       setBrandData(response.brand)
+      setExtractionProgress(100)
+      setExtractionMessage('Analysis complete!')
     } catch (err: any) {
       setError(err.message || 'Failed to extract brand data. Please try again.')
       console.error('Brand extraction error:', err)
     } finally {
-      setIsLoading(false)
+      setTimeout(() => {
+        setIsLoading(false)
+        setExtractionProgress(0)
+        setExtractionMessage('')
+      }, 1000) // Keep progress visible for 1 second after completion
     }
   }
 
@@ -497,7 +529,18 @@ const BrandProfile = () => {
         <div className="loading-overlay">
           <div className="loading-container">
             <div className="loading"></div>
-            <p className="loading-text">Extracting brand data...</p>
+            <p className="loading-text">{extractionMessage || 'Extracting brand data...'}</p>
+            {extractionProgress > 0 && (
+              <div className="progress-container">
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${extractionProgress}%` }}
+                  />
+                </div>
+                <span className="progress-text">{extractionProgress}%</span>
+              </div>
+            )}
           </div>
         </div>
       )}

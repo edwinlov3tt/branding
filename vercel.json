@@ -5,12 +5,19 @@
   "functions": {
     "api/*.js": {
       "maxDuration": 60
+    },
+    "api/analyze-brand-enhanced.js": {
+      "maxDuration": 120
     }
   },
   "github": {
     "silent": false
   },
   "rewrites": [
+    {
+      "source": "/api/analyze-brand-enhanced",
+      "destination": "/api/analyze-brand-enhanced"
+    },
     {
       "source": "/api/extract-brand",
       "destination": "/api/extract-brand"
