@@ -1,6 +1,7 @@
 .generations-list {
   max-width: 1400px;
   margin: 0 auto;
+  padding: 32px;
 }
 
 .generations-grid {
@@ -10,7 +11,7 @@
 }
 
 .generation-card {
-  padding: 20px;
+  padding: 24px;
 }
 
 .generation-preview {
