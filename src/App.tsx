@@ -6,6 +6,7 @@ import CompetitorAnalysis from './components/competitors/CompetitorAnalysis'
 import InspirationLibrary from './components/inspiration/InspirationLibrary'
 import GenerationsList from './components/generations/GenerationsList'
 import AIModels from './components/models/AIModels'
+import CampaignsList from './components/campaigns/CampaignsList'
 import Settings from './components/settings/Settings'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="inspiration" element={<InspirationLibrary />} />
           <Route path="generations" element={<GenerationsList />} />
           <Route path="models" element={<AIModels />} />
+          <Route path="campaigns" element={<CampaignsList />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

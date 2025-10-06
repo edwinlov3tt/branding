@@ -231,6 +231,18 @@ export interface AIModel {
   avatarUrl?: string;
 }
 
+// Campaign Types
+export interface Campaign {
+  id: string;
+  name: string;
+  marketingObjective: 'Awareness' | 'Conversions' | 'Engagement' | 'Leads' | 'Traffic' | 'Sales';
+  launchDate: string;
+  budget: string;
+  objective: string;
+  targetAudience: string;
+  status?: 'draft' | 'active' | 'paused' | 'completed';
+}
+
 // Page Discovery Types
 export interface PageImage {
   url: string;

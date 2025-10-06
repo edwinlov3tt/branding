@@ -6,6 +6,7 @@ import {
   Lightbulb,
   Palette,
   Bot,
+  Target,
   Settings
 } from 'lucide-react'
 import './Sidebar.css'
@@ -18,6 +19,7 @@ const Sidebar = () => {
     { path: '/inspiration', label: 'Inspiration Library', icon: Lightbulb },
     { path: '/generations', label: 'Generated Creatives', icon: Palette },
     { path: '/models', label: 'AI Models & Actors', icon: Bot },
+    { path: '/campaigns', label: 'Campaigns', icon: Target },
     { path: '/settings', label: 'Settings', icon: Settings },
   ]
 
