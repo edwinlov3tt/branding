@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ReactSVG } from 'react-svg';
 import { X, Download, ExternalLink, Palette } from 'lucide-react';
 import type { LogoItem, LogoColor } from '@/types';
 import { getBestContrastColor, getOptimalLogoBackgrounds } from '@/utils/colorUtils';
@@ -29,6 +30,11 @@ const LogoPreview = ({
   if (!logo || !logo.src) {
     return null;
   }
+
+  // Detect if the logo is an SVG
+  const isSVG = logo.src.toLowerCase().includes('.svg') ||
+                logo.src.toLowerCase().includes('image/svg') ||
+                logo.src.toLowerCase().startsWith('data:image/svg+xml');
 
   const backgrounds = getOptimalLogoBackgrounds(logoColors.map(c => c.hex));
   const backgroundHex = backgrounds[backgroundMode];
@@ -152,18 +158,38 @@ const LogoPreview = ({
           </div>
         )}
 
-        <img
-          src={logo.src}
-          alt={isPrimary ? 'Primary logo' : 'Logo'}
-          className={`logo-image ${imageLoaded ? 'loaded' : ''}`}
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-          style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            objectFit: 'contain'
-          }}
-        />
+        {isSVG ? (
+          <ReactSVG
+            src={logo.src}
+            beforeInjection={(svg) => {
+              svg.setAttribute('style', 'max-width: 100%; max-height: 100%;');
+              svg.classList.add('logo-image');
+            }}
+            afterInjection={() => {
+              setImageLoaded(true);
+              setImageError(false);
+            }}
+            onError={() => {
+              setImageError(true);
+              setImageLoaded(false);
+            }}
+            className={`logo-svg ${imageLoaded ? 'loaded' : ''}`}
+            loading={() => null}
+          />
+        ) : (
+          <img
+            src={logo.src}
+            alt={isPrimary ? 'Primary logo' : 'Logo'}
+            className={`logo-image ${imageLoaded ? 'loaded' : ''}`}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain'
+            }}
+          />
+        )}
       </div>
 
       {logoColors.length > 0 && (
