@@ -1,7 +1,6 @@
 .inspiration-library {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 32px;
 }
 
 .category-filters {
@@ -39,7 +38,7 @@
 }
 
 .template-card {
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
 }
