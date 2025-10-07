@@ -41,16 +41,22 @@ const Sidebar = () => {
     <aside className="sidebar">
       <div className="logo">Creative AI</div>
       <nav className="nav">
-        {navItems.map((item, index) => (
-          <NavLink
-            key={item.path}
-            to={getBrandPath(item.path)}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${index === navItems.length - 1 ? 'last-nav-item' : ''}`}
-          >
-            <item.icon className="nav-icon" size={20} />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+        {currentBrand ? (
+          navItems.map((item, index) => (
+            <NavLink
+              key={item.path}
+              to={getBrandPath(item.path)}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${index === navItems.length - 1 ? 'last-nav-item' : ''}`}
+            >
+              <item.icon className="nav-icon" size={20} />
+              <span>{item.label}</span>
+            </NavLink>
+          ))
+        ) : (
+          <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '14px' }}>
+            Select or create a brand to access features
+          </div>
+        )}
       </nav>
       <BrandProfile />
     </aside>
