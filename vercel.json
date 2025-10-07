@@ -12,23 +12,7 @@
   },
   "rewrites": [
     {
-      "source": "/api/analyze-brand-enhanced",
-      "destination": "/api/analyze-brand-enhanced"
-    },
-    {
-      "source": "/api/extract-brand",
-      "destination": "/api/extract-brand"
-    },
-    {
-      "source": "/api/discover-brand-pages",
-      "destination": "/api/discover-brand-pages"
-    },
-    {
-      "source": "/health",
-      "destination": "/api/health"
-    },
-    {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/"
     }
   ]
