@@ -7,7 +7,6 @@ interface BrandContextType {
   currentBrand: Brand | null;
   setCurrentBrand: (brand: Brand | null) => void;
   loading: boolean;
-  error: string | null;
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
@@ -66,8 +65,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
       value={{
         currentBrand,
         setCurrentBrand,
-        loading,
-        error
+        loading
       }}
     >
       {children}
