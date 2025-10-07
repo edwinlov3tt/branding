@@ -7,7 +7,7 @@ const pool = new Pool({
   database: process.env.DATABASE_NAME,
   user: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: false, // Disable SSL for database connection
 });
 
 // Helper function to set CORS headers
