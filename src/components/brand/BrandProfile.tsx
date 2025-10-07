@@ -12,7 +12,8 @@ import type {
   BrandData,
   EditedBrandData
 } from '@/types'
-import { extractBrandData, saveEditedBrandData, loadEditedBrandData, checkExternalApiHealth } from '@/services/api/brandService'
+import { extractBrandData, saveEditedBrandData, loadEditedBrandData, checkExternalApiHealth, getBrandAssets } from '@/services/api/brandService'
+import { useBrand } from '@/contexts/BrandContext'
 import { loadGoogleFonts } from '@/utils/fontUtils'
 import './BrandProfile.css'
 import './ConfidenceBar.css'
@@ -21,6 +22,7 @@ import './TypographyPreview.css'
 import './LogoPreview.css'
 
 const BrandProfile = () => {
+  const { currentBrand } = useBrand()
   const [brandData, setBrandData] = useState<BrandData | null>(null)
   const [extractResponse, setExtractResponse] = useState<BrandExtractResponse | null>(null)
   const [editedData, setEditedData] = useState<EditedBrandData>({
@@ -43,7 +45,26 @@ const BrandProfile = () => {
         setEditedData(saved)
       }
     })
-  }, [])
+
+    // Load brand assets if current brand is set
+    if (currentBrand?.id) {
+      loadBrandAssets()
+    }
+  }, [currentBrand?.id])
+
+  const loadBrandAssets = async () => {
+    if (!currentBrand?.id) return
+
+    try {
+      const assets = await getBrandAssets(currentBrand.id)
+      if (assets) {
+        setExtractResponse(assets)
+        setBrandData(assets.brand)
+      }
+    } catch (error) {
+      console.error('Failed to load brand assets:', error)
+    }
+  }
 
   const checkApiStatus = async () => {
     try {

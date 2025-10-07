@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Creative Wizard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { brand: { base: '#C8FF65' } },
+          boxShadow: { card: '0 6px 24px rgba(0,0,0,0.25)' },
+          borderRadius: { xl: '14px' }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-neutral-900 text-neutral-100">
+  <div class="max-w-5xl mx-auto px-4 py-6">
+    <header class="flex items-center justify-between mb-6">
+      <h1 class="text-xl font-semibold">Brand Summary</h1>
+      <div class="h-1 w-64 bg-neutral-800 rounded"><div id="progress" class="h-1 bg-brand-base rounded" style="width:20%"></div></div>
+    </header>
+
+    <div id="steps" class="space-y-6">
+
+      <section id="step1" class="bg-neutral-800 border border-neutral-700 rounded-xl p-5 shadow-card">
+        <h2 class="text-lg font-semibold">Review your brand information</h2>
+        <p class="text-sm text-neutral-400 mb-4">Paste the client URL and confirm details.</p>
+
+        <div class="grid gap-3">
+          <label class="text-sm">Brand URL</label>
+          <div class="flex gap-2">
+            <input id="brandUrl" class="flex-1 bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2" placeholder="https://example.com"/>
+            <button id="btnAnalyze" class="px-3 py-2 rounded-lg bg-brand-base text-black font-medium">Analyze</button>
+          </div>
+
+          <label class="text-sm mt-4">Brand Name</label>
+          <input id="brandName" class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2"/>
+
+          <label class="text-sm mt-4">Brand Description</label>
+          <textarea id="brandDesc" class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 h-24"></textarea>
+
+          <div class="mt-4">
+            <div class="text-sm mb-2">Colors</div>
+            <div id="colorRow" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <div id="screenshotSection" class="mt-4 hidden">
+            <div class="text-sm mb-2">Website Screenshot</div>
+            <div id="screenshotContainer" class="bg-neutral-900 border border-neutral-700 rounded-lg p-2">
+              <img id="screenshot" class="w-full max-h-64 object-cover rounded" />
+            </div>
+          </div>
+
+          <div id="logoSection" class="mt-4 hidden">
+            <div class="text-sm mb-2">Logos</div>
+            <div id="logoContainer" class="bg-neutral-900 border border-neutral-700 rounded-lg p-2 min-h-20">
+            </div>
+          </div>
+
+          <div id="fontsSection" class="mt-4 hidden">
+            <div class="text-sm mb-2">Fonts</div>
+            <div id="fontsList" class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
+          </div>
+
+          <div id="socialSection" class="mt-4 hidden">
+            <div class="text-sm mb-2">Social Media</div>
+            <div id="socialLinks" class="bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm"></div>
+          </div>
+
+          <div class="flex justify-end mt-4">
+            <button id="goStep2" class="px-4 py-2 bg-brand-base text-black rounded-lg font-medium">Continue</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="step2" class="hidden bg-neutral-800 border border-neutral-700 rounded-xl p-5 shadow-card">
+        <h2 class="text-lg font-semibold mb-2">Personas</h2>
+        <p class="text-sm text-neutral-400 mb-4">Tell us who you're targeting. We’ll generate 5 personas; you can edit or add more.</p>
+
+        <textarea id="research" class="w-full h-32 bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2" placeholder="Paste brief research notes, target market, goals..."></textarea>
+        <div class="flex items-center gap-2 mt-2">
+          <button id="btnGenPersonas" class="px-4 py-2 bg-brand-base text-black rounded-lg font-medium">Generate Personas</button>
+          <span id="genStatus" class="text-sm text-neutral-400"></span>
+        </div>
+
+        <div id="personaList" class="grid gap-3 mt-4"></div>
+
+        <div class="flex justify-between mt-6">
+          <button id="back1" class="px-4 py-2 bg-neutral-700 rounded-lg">Back</button>
+          <button id="goStep3" class="px-4 py-2 bg-brand-base text-black rounded-lg font-medium">Continue</button>
+        </div>
+      </section>
+
+      <section id="step3" class="hidden bg-neutral-800 border border-neutral-700 rounded-xl p-5 shadow-card">
+        <h2 class="text-lg font-semibold mb-2">Review</h2>
+        <p class="text-sm text-neutral-400 mb-4">Confirm details and proceed to creative generation in your next tool.</p>
+        <pre id="review" class="bg-neutral-900 border border-neutral-700 rounded-lg p-3 text-xs overflow-auto"></pre>
+        <div class="flex justify-between mt-6">
+          <button id="back2" class="px-4 py-2 bg-neutral-700 rounded-lg">Back</button>
+          <a id="exportJson" class="px-4 py-2 bg-brand-base text-black rounded-lg font-medium" download="brand-brief.json">Export JSON</a>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="/public/wizard.js"></script>
+</body>
+</html>

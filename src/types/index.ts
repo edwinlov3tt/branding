@@ -170,7 +170,20 @@ export interface EditedBrandData {
 }
 
 
-// Persona Types
+// Target Audience Types
+export interface TargetAudience {
+  id: string;
+  name: string;
+  description: string;
+  demographics: string;
+  interests: string[];
+  painPoints: string[];
+  goals: string[];
+  budgetRange: string;
+  channels: string[];
+}
+
+// Legacy Persona type (for backward compatibility)
 export interface Persona {
   id: string;
   name: string;
@@ -220,7 +233,18 @@ export interface Generation {
   model?: string;
 }
 
-// AI Model Types
+// Product & Service Types
+export interface ProductService {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl?: string;
+  category: string;
+  price?: string;
+  features: string[];
+}
+
+// Legacy AI Model type (for backward compatibility)
 export interface AIModel {
   id: string;
   type: 'avatar' | 'spokesperson' | 'character';
@@ -241,6 +265,28 @@ export interface Campaign {
   objective: string;
   targetAudience: string;
   status?: 'draft' | 'active' | 'paused' | 'completed';
+}
+
+// Brand Management Types
+export interface Brand {
+  id: string;
+  name: string;
+  website: string;
+  logo?: string;
+  primaryColor?: string;
+  slug: string;
+  shortId: string;
+  industry?: string;
+  faviconUrl?: string;
+  createdAt: string;
+  lastModified: string;
+  brandData?: BrandData;
+  audiences?: TargetAudience[];
+  products?: ProductService[];
+  campaigns?: Campaign[];
+  competitors?: Competitor[];
+  templates?: Template[];
+  generations?: Generation[];
 }
 
 // Page Discovery Types

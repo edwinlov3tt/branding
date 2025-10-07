@@ -9,7 +9,10 @@
     "dev:all": "npm run server & npm run dev",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "db:migrate": "ts-node --project tsconfig.backend.json lib/migrate.ts",
+    "db:migrate:identifiers": "ts-node --project tsconfig.backend.json lib/migrations/add-brand-identifiers.ts",
+    "db:test": "ts-node --project tsconfig.backend.json -e \"require('dotenv').config({path:'.env.local'}); require('./lib/db').testConnection().then(r=>console.log('✅ Connected:',r)).catch(e=>console.error('❌ Error:',e))\""
   },
   "repository": {
     "type": "git",
@@ -26,17 +29,23 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
+    "dotenv": "^17.2.3",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
     "vite": "^7.1.7"
   },
   "dependencies": {
+    "@types/pg": "^8.15.5",
     "axios": "^1.12.2",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "lucide-react": "^0.544.0",
+    "nanoid": "^5.1.6",
+    "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.2",
-    "react-svg": "^16.3.0"
+    "react-svg": "^16.3.0",
+    "slugify": "^1.6.6"
   }
 }

@@ -1,49 +1,42 @@
 import { useState } from 'react'
-import { Layout } from 'lucide-react'
+import { Layout, Search } from 'lucide-react'
 import type { Template } from '@/types'
 import './InspirationLibrary.css'
 
 const InspirationLibrary = () => {
-  const [templates] = useState<Template[]>([
-    {
-      id: '1',
-      name: 'E-commerce Hero',
-      category: 'Landing Page',
-      description: 'High-converting hero section for e-commerce',
-      thumbnail: '',
-      isPremium: false
-    },
-    {
-      id: '2',
-      name: 'SaaS Feature',
-      category: 'Product Showcase',
-      description: 'Feature highlight for SaaS products',
-      thumbnail: '',
-      isPremium: true
-    },
-    {
-      id: '3',
-      name: 'Social Proof',
-      category: 'Testimonial',
-      description: 'Customer testimonial showcase',
-      thumbnail: '',
-      isPremium: false
-    }
-  ])
+  const [templates] = useState<Template[]>([])
 
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const categories = ['all', 'Landing Page', 'Product Showcase', 'Testimonial', 'Banner', 'Social Media']
+  const categories = ['all', 'Social Media', 'Banners', 'Videos', 'Emails']
 
-  const filteredTemplates = selectedCategory === 'all'
-    ? templates
-    : templates.filter(t => t.category === selectedCategory)
+  const filteredTemplates = templates.filter(t => {
+    const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory
+    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         t.description.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesCategory && matchesSearch
+  })
 
   return (
     <div className="inspiration-library">
       <div className="section">
         <div className="section-header">
           <h2 className="section-title">Inspiration Library</h2>
+          <button className="button button-primary">Add Inspiration</button>
+        </div>
+
+        <div className="filters-container">
+          <div className="search-bar">
+            <Search size={18} />
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Search inspiration..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
           <div className="category-filters">
             {categories.map(category => (
               <button
@@ -57,24 +50,31 @@ const InspirationLibrary = () => {
           </div>
         </div>
 
-        <div className="templates-grid">
-          {filteredTemplates.map(template => (
-            <div key={template.id} className="template-card card">
-              <div className="template-thumbnail">
-                <Layout size={48} />
+        {filteredTemplates.length > 0 ? (
+          <div className="templates-grid">
+            {filteredTemplates.map(template => (
+              <div key={template.id} className="template-card card">
+                <div className="template-thumbnail">
+                  <Layout size={48} />
+                </div>
+                <h3 className="template-name">{template.name}</h3>
+                <p className="template-category">{template.category}</p>
+                <p className="template-description">{template.description}</p>
+                <div className="template-footer">
+                  {template.isPremium && (
+                    <span className="status-badge status-warning">Premium</span>
+                  )}
+                  <button className="button button-primary">Use Template</button>
+                </div>
               </div>
-              <h3 className="template-name">{template.name}</h3>
-              <p className="template-category">{template.category}</p>
-              <p className="template-description">{template.description}</p>
-              <div className="template-footer">
-                {template.isPremium && (
-                  <span className="status-badge status-warning">Premium</span>
-                )}
-                <button className="button button-primary">Use Template</button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <p className="empty-text">No inspiration templates added yet</p>
+            <p className="empty-subtext">Click "Add Inspiration" above to save creative templates and reference materials for future campaigns.</p>
+          </div>
+        )}
       </div>
     </div>
   )

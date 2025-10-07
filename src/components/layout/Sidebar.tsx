@@ -4,40 +4,55 @@ import {
   Users,
   Swords,
   Lightbulb,
-  Palette,
-  Bot,
+  Package,
   Target,
+  Palette,
   Settings
 } from 'lucide-react'
+import BrandProfile from './BrandProfile'
+import { useBrand } from '@/contexts/BrandContext'
+import { generateBrandUrl } from '@/utils/brandIdentifiers'
 import './Sidebar.css'
 
 const Sidebar = () => {
+  const { currentBrand } = useBrand()
+
+  // Generate brand-scoped URLs if a brand is selected
+  const getBrandPath = (basePath: string) => {
+    if (currentBrand) {
+      return generateBrandUrl(currentBrand, basePath)
+    }
+    // Fallback to root paths if no brand selected
+    return `/${basePath}`
+  }
+
   const navItems = [
-    { path: '/brand', label: 'Brand Profile', icon: Building2 },
-    { path: '/personas', label: 'Customer Personas', icon: Users },
-    { path: '/competitors', label: 'Competitor Analysis', icon: Swords },
-    { path: '/inspiration', label: 'Inspiration Library', icon: Lightbulb },
-    { path: '/generations', label: 'Generated Creatives', icon: Palette },
-    { path: '/models', label: 'AI Models & Actors', icon: Bot },
-    { path: '/campaigns', label: 'Campaigns', icon: Target },
-    { path: '/settings', label: 'Settings', icon: Settings },
+    { path: 'brand', label: 'Brand Profile', icon: Building2 },
+    { path: 'audiences', label: 'Target Audiences', icon: Users },
+    { path: 'competitors', label: 'Competitor Analysis', icon: Swords },
+    { path: 'inspiration', label: 'Inspiration Library', icon: Lightbulb },
+    { path: 'products', label: 'Products & Services', icon: Package },
+    { path: 'campaigns', label: 'Campaigns', icon: Target },
+    { path: 'generations', label: 'Generated Creatives', icon: Palette },
+    { path: 'settings', label: 'Settings', icon: Settings },
   ]
 
   return (
     <aside className="sidebar">
       <div className="logo">Creative AI</div>
       <nav className="nav">
-        {navItems.map(item => (
+        {navItems.map((item, index) => (
           <NavLink
             key={item.path}
-            to={item.path}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            to={getBrandPath(item.path)}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${index === navItems.length - 1 ? 'last-nav-item' : ''}`}
           >
             <item.icon className="nav-icon" size={20} />
             <span>{item.label}</span>
           </NavLink>
         ))}
       </nav>
+      <BrandProfile />
     </aside>
   )
 }

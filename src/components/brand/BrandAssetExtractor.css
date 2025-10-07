@@ -1,14 +1,18 @@
+/* Brand Asset Extractor - v2 */
 .extractor {
-  /* Extractor component doesn't need its own container padding */
+  width: 100%;
 }
 
 .extractor-input-group {
   display: flex;
   gap: 16px;
+  align-items: center;
+  width: 100%;
 }
 
 .extractor-input-group .input {
   flex: 1;
+  min-width: 0;
 }
 
 .error-message {

@@ -152,3 +152,95 @@ export const discoverBrandPages = async (
   }
 }
 
+// Brand CRUD operations
+export const getAllBrands = async () => {
+  try {
+    const response = await apiClient.get('/api/brands')
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch brands:', error)
+    throw error
+  }
+}
+
+export const getBrandByIdentifiers = async (slug: string, shortId: string) => {
+  try {
+    const response = await apiClient.get(`/api/brands/${slug}/${shortId}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch brand:', error)
+    throw error
+  }
+}
+
+export const createBrand = async (brandData: {
+  name: string
+  website?: string
+  logo_url?: string
+  primary_color?: string
+  industry?: string
+  favicon_url?: string
+}) => {
+  try {
+    const response = await apiClient.post('/api/brands', brandData)
+    return response.data
+  } catch (error) {
+    console.error('Failed to create brand:', error)
+    throw error
+  }
+}
+
+export const updateBrand = async (id: string, brandData: {
+  name?: string
+  website?: string
+  logo_url?: string
+  primary_color?: string
+  industry?: string
+  favicon_url?: string
+}) => {
+  try {
+    const response = await apiClient.put('/api/brands', { id, ...brandData })
+    return response.data
+  } catch (error) {
+    console.error('Failed to update brand:', error)
+    throw error
+  }
+}
+
+export const deleteBrand = async (id: string) => {
+  try {
+    const response = await apiClient.delete(`/api/brands?id=${id}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to delete brand:', error)
+    throw error
+  }
+}
+
+export const saveBrandAssets = async (brandId: string, extractedData: BrandExtractResponse) => {
+  try {
+    const response = await apiClient.post('/api/brand-assets', {
+      brand_id: brandId,
+      assets: extractedData
+    })
+    return response.data
+  } catch (error) {
+    console.error('Failed to save brand assets:', error)
+    // Don't throw - this is not critical
+    return { success: false, error }
+  }
+}
+
+export const getBrandAssets = async (brandId: string): Promise<BrandExtractResponse | null> => {
+  try {
+    const response = await apiClient.get(`/api/brand-assets?brand_id=${brandId}`)
+    if (response.data.success && response.data.data) {
+      return response.data.data.assets
+    }
+    return null
+  } catch (error) {
+    console.error('Failed to load brand assets:', error)
+    return null
+  }
+}
+

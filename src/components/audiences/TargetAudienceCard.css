@@ -1,0 +1,94 @@
+.audience-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.audience-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.audience-avatar {
+  width: 48px;
+  height: 48px;
+  background: var(--bg-tertiary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.audience-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.audience-demographics {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.audience-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.audience-section {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.audience-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.audience-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.audience-list li {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.audience-list li:before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--brand-red);
+}
+
+.audience-budget {
+  color: var(--success);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.audience-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.channel-chip {
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
