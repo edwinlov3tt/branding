@@ -17,7 +17,6 @@ const STORAGE_KEY = 'selectedBrand';
 export function BrandProvider({ children }: { children: ReactNode }) {
   const [currentBrand, setCurrentBrandState] = useState<Brand | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const location = useLocation();
 
   // Load brand from localStorage on mount

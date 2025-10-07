@@ -76,7 +76,7 @@ const BrandOnboarding = () => {
       if (extractedData) {
         // Get primary color from palette (not removed)
         const visibleColors = extractedData.brand.colors.palette.filter(
-          c => !removedAssets.colors.includes(c.hex)
+          c => c && !removedAssets.colors.includes(c.hex)
         );
         const primaryColor = visibleColors[0]?.hex;
 
@@ -84,7 +84,9 @@ const BrandOnboarding = () => {
         const visibleLogos = [
           extractedData.brand.logos.primary,
           ...(extractedData.brand.logos.alternates || [])
-        ].filter(logo => !removedAssets.logos.includes(logo.src));
+        ]
+          .filter(logo => logo !== null && logo !== undefined)
+          .filter(logo => !removedAssets.logos.includes(logo.src));
         const primaryLogo = visibleLogos[0]?.src;
 
         // Get favicon URL if available
@@ -215,7 +217,7 @@ const BrandOnboarding = () => {
 
         {currentStep === 4 && (
           <BrandDetails
-            initialName={manualBrandData?.name || extractedData?.brand.metadata?.title || ''}
+            initialName={manualBrandData?.name || ''}
             initialWebsite={manualBrandData?.website || extractedData?.brand.url || ''}
             onSave={handleSaveBrand}
             onBack={handleBack}
