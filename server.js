@@ -438,6 +438,103 @@ app.delete('/api/brands', async (req, res) => {
   }
 });
 
+// Brand Assets endpoints
+// POST - Save brand assets
+app.post('/api/brand-assets', async (req, res) => {
+  try {
+    const { brand_id, assets } = req.body;
+
+    if (!brand_id || !assets) {
+      return res.status(400).json({
+        success: false,
+        error: 'Brand ID and assets are required'
+      });
+    }
+
+    // Check if table exists, create if not
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS brand_assets (
+        id SERIAL PRIMARY KEY,
+        brand_id UUID UNIQUE REFERENCES brands(id) ON DELETE CASCADE,
+        assets JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Insert or update brand assets
+    const result = await pool.query(
+      `INSERT INTO brand_assets (brand_id, assets)
+       VALUES ($1, $2)
+       ON CONFLICT (brand_id)
+       DO UPDATE SET assets = $2, updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [brand_id, assets]
+    );
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Brand Assets API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+// GET - Fetch brand assets by brand_id
+app.get('/api/brand-assets', async (req, res) => {
+  try {
+    const { brand_id } = req.query;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Brand ID is required'
+      });
+    }
+
+    // Check if table exists first
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS brand_assets (
+        id SERIAL PRIMARY KEY,
+        brand_id UUID UNIQUE REFERENCES brands(id) ON DELETE CASCADE,
+        assets JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const result = await pool.query(
+      'SELECT * FROM brand_assets WHERE brand_id = $1',
+      [brand_id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Brand assets not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Brand Assets API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
 // Fallback route - handle all other requests
 app.use((req, res) => {
   res.status(404).json({
@@ -459,4 +556,6 @@ app.listen(PORT, () => {
   console.log('   POST /api/brands - Create new brand');
   console.log('   PUT  /api/brands - Update brand');
   console.log('   DELETE /api/brands - Delete brand');
+  console.log('   POST /api/brand-assets - Save brand assets');
+  console.log('   GET  /api/brand-assets - Get brand assets');
 });
