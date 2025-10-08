@@ -14,12 +14,14 @@ const ImageAssets = ({ url }: ImageAssetsProps) => {
   const [removedImages, setRemovedImages] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
-    if (url) {
+    // Only fetch if we haven't fetched for this URL yet
+    if (url && !hasFetched) {
       fetchBrandImages();
     }
-  }, [url]);
+  }, [url, hasFetched]);
 
   const fetchBrandImages = async () => {
     setIsLoading(true);
@@ -36,9 +38,11 @@ const ImageAssets = ({ url }: ImageAssetsProps) => {
       // Filter pages that have images
       const pagesWithImages = response.pages.filter(page => page.images && page.images.length > 0);
       setPages(pagesWithImages);
+      setHasFetched(true); // Mark as fetched
     } catch (err: any) {
       setError(err.message || 'Failed to discover brand images');
       console.error('Error discovering brand pages:', err);
+      setHasFetched(true); // Mark as fetched even on error to prevent retrying
     } finally {
       setIsLoading(false);
     }

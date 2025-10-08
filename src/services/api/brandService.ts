@@ -7,6 +7,7 @@ import type {
   DiscoverPagesResponse
 } from '@/types'
 import { calculateWCAGContrast } from '@/utils/colorUtils'
+import { brandCache } from '../cache/brandCache'
 
 // Health check for the external API
 export const checkExternalApiHealth = async (): Promise<boolean> => {
@@ -223,6 +224,13 @@ export const saveBrandAssets = async (brandId: string, extractedData: BrandExtra
       brand_id: brandId,
       assets: extractedData
     })
+
+    // Invalidate cache for this brand since we just updated it
+    brandCache.invalidate(brandId)
+
+    // Store the new data in cache
+    brandCache.set(brandId, extractedData)
+
     return response.data
   } catch (error) {
     console.error('Failed to save brand assets:', error)
@@ -232,10 +240,24 @@ export const saveBrandAssets = async (brandId: string, extractedData: BrandExtra
 }
 
 export const getBrandAssets = async (brandId: string): Promise<BrandExtractResponse | null> => {
+  // Check cache first
+  const cached = brandCache.get(brandId)
+  if (cached) {
+    console.log(`[Cache Hit] Brand assets loaded from cache for brand: ${brandId}`)
+    return cached
+  }
+
+  // Cache miss - fetch from API
+  console.log(`[Cache Miss] Fetching brand assets from database for brand: ${brandId}`)
   try {
     const response = await apiClient.get(`/api/brand-assets?brand_id=${brandId}`)
     if (response.data.success && response.data.data) {
-      return response.data.data.assets
+      const assets = response.data.data.assets
+
+      // Store in cache for future requests
+      brandCache.set(brandId, assets)
+
+      return assets
     }
     return null
   } catch (error) {
