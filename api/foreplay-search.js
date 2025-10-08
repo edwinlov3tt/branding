@@ -2,7 +2,7 @@ const axios = require('axios');
 
 function setCorsHeaders(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
@@ -31,25 +31,19 @@ module.exports = async (req, res) => {
       return;
     }
 
-    console.log('🔍 Foreplay API search request:', { query, platform, niche, limit, cursor: !!cursor });
-
     const apiParams = {
       query: query || '',
       limit: Math.min(limit, 100),
       page_token: cursor || undefined
     };
 
-    // Add platform filter (convert to lowercase as Foreplay expects)
     if (platform && platform !== 'all') {
       apiParams.publisher_platform = [platform.toLowerCase()];
     }
 
-    // Add niche filter if provided
     if (niche && niche !== 'all') {
       apiParams.niches = [niche];
     }
-
-    console.log('📤 Calling Foreplay Discovery API with params:', apiParams);
 
     const response = await axios.get('https://public.api.foreplay.co/api/discovery/ads', {
       headers: {
@@ -60,20 +54,11 @@ module.exports = async (req, res) => {
       timeout: 25000
     });
 
-    console.log('✅ Foreplay API response:', {
-      total: response.data?.data?.length || 0,
-      hasNextPage: !!response.data?.next_page_token
-    });
-
-    // Fetch detailed info for each ad (with media URLs)
     const adsWithDetails = await Promise.all(
       (response.data?.data || []).map(async (ad) => {
         try {
           const detailResponse = await axios.get('https://public.api.foreplay.co/api/ad', {
-            headers: {
-              'Authorization': foreplayApiKey,
-              'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': foreplayApiKey },
             params: { id: ad.id },
             timeout: 5000
           });
@@ -85,7 +70,6 @@ module.exports = async (req, res) => {
             video: detailResponse.data?.media?.find(m => m.type === 'video')?.url || null
           };
         } catch (err) {
-          console.error(`Failed to fetch details for ad ${ad.id}:`, err.message);
           return ad;
         }
       })
@@ -99,7 +83,7 @@ module.exports = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Foreplay API error:', error.response?.data || error.message);
+    console.error('Foreplay API error:', error);
     res.status(error.response?.status || 500).json({
       success: false,
       error: 'Failed to search ads',

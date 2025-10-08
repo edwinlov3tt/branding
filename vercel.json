@@ -12,38 +12,6 @@
   },
   "rewrites": [
     {
-      "source": "/api/foreplay/search-ads",
-      "destination": "/api/foreplay/search-ads"
-    },
-    {
-      "source": "/api/ad-inspirations/curated",
-      "destination": "/api/ad-inspirations/curated"
-    },
-    {
-      "source": "/api/ad-inspirations/save",
-      "destination": "/api/ad-inspirations/save"
-    },
-    {
-      "source": "/api/ai/generate-brand-intelligence",
-      "destination": "/api/ai/generate-brand-intelligence"
-    },
-    {
-      "source": "/api/ai/generate-audiences",
-      "destination": "/api/ai/generate-audiences"
-    },
-    {
-      "source": "/api/ai/analyze-competitor",
-      "destination": "/api/ai/analyze-competitor"
-    },
-    {
-      "source": "/api/ai/generate-products",
-      "destination": "/api/ai/generate-products"
-    },
-    {
-      "source": "/api/ai/generate-campaigns",
-      "destination": "/api/ai/generate-campaigns"
-    },
-    {
       "source": "/((?!api/).*)",
       "destination": "/"
     }
