@@ -2,11 +2,15 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Layout from './components/layout/Layout'
 import BrandProfile from './components/brand/BrandProfile'
 import TargetAudienceList from './components/audiences/TargetAudienceList'
+import TargetAudienceForm from './components/audiences/TargetAudienceForm'
 import CompetitorAnalysis from './components/competitors/CompetitorAnalysis'
+import CompetitorForm from './components/competitors/CompetitorForm'
 import InspirationLibrary from './components/inspiration/InspirationLibrary'
 import AdLibraryBrowser from './components/inspiration/AdLibraryBrowser'
 import ProductsServices from './components/products/ProductsServices'
+import ProductServiceForm from './components/products/ProductServiceForm'
 import CampaignsList from './components/campaigns/CampaignsList'
+import CampaignForm from './components/campaigns/CampaignForm'
 import GenerationsList from './components/generations/GenerationsList'
 import Settings from './components/settings/Settings'
 import AllBrands from './components/brands/AllBrands'
@@ -35,10 +39,14 @@ function App() {
             {/* Brand-scoped routes with slug and short ID */}
             <Route path="brand/:slug/:shortId" element={<BrandProfile />} />
             <Route path="audiences/:slug/:shortId" element={<TargetAudienceList />} />
+            <Route path="audiences/:slug/:shortId/new" element={<TargetAudienceForm />} />
             <Route path="competitors/:slug/:shortId" element={<CompetitorAnalysis />} />
+            <Route path="competitors/:slug/:shortId/new" element={<CompetitorForm />} />
             <Route path="inspiration/:slug/:shortId" element={<InspirationLibrary />} />
             <Route path="products/:slug/:shortId" element={<ProductsServices />} />
+            <Route path="products/:slug/:shortId/new" element={<ProductServiceForm />} />
             <Route path="campaigns/:slug/:shortId" element={<CampaignsList />} />
+            <Route path="campaigns/:slug/:shortId/new" element={<CampaignForm />} />
             <Route path="generations/:slug/:shortId" element={<GenerationsList />} />
             <Route path="settings/:slug/:shortId" element={<Settings />} />
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bookmark, BookmarkCheck, ExternalLink, Play } from 'lucide-react'
+import { Bookmark, BookmarkCheck, ExternalLink, Play, X } from 'lucide-react'
 import type { AdInspiration } from '@/types'
 import './AdCard.css'
 
@@ -14,6 +14,8 @@ const AdCard = ({ ad, onSave, isSaved = false, showSaveButton = true }: AdCardPr
   const [saved, setSaved] = useState(isSaved)
   const [saving, setSaving] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const [showVideoModal, setShowVideoModal] = useState(false)
+  const [showImageModal, setShowImageModal] = useState(false)
 
   const handleSave = async () => {
     if (saving || !onSave) return
@@ -43,38 +45,52 @@ const AdCard = ({ ad, onSave, isSaved = false, showSaveButton = true }: AdCardPr
   }
 
   return (
-    <div className="ad-card">
-      <div className="ad-thumbnail">
-        {!imageError ? (
-          <img
-            src={ad.thumbnail_url}
-            alt={ad.ad_copy || ad.advertiser_name}
-            onError={() => setImageError(true)}
-            loading="lazy"
-          />
-        ) : (
-          <div className="ad-thumbnail-placeholder">
-            <Play size={32} />
-          </div>
-        )}
+    <>
+      <div className="ad-card">
+        <div
+          className="ad-thumbnail"
+          onClick={() => {
+            if (ad.video_url) {
+              setShowVideoModal(true)
+            } else if (ad.thumbnail_url) {
+              setShowImageModal(true)
+            }
+          }}
+          style={{ cursor: (ad.video_url || ad.thumbnail_url) ? 'pointer' : 'default' }}
+        >
+          {!imageError && ad.thumbnail_url ? (
+            <img
+              src={ad.thumbnail_url}
+              alt={ad.ad_copy || ad.advertiser_name}
+              onError={() => setImageError(true)}
+              loading="lazy"
+            />
+          ) : (
+            <div className="ad-thumbnail-placeholder">
+              <Play size={32} />
+            </div>
+          )}
 
-        {ad.video_url && (
-          <div className="ad-video-badge">
-            <Play size={14} />
-          </div>
-        )}
+          {ad.video_url && (
+            <div className="ad-video-badge">
+              <Play size={14} />
+            </div>
+          )}
 
-        {showSaveButton && (
-          <button
-            className={`ad-save-button ${saved ? 'saved' : ''}`}
-            onClick={handleSave}
-            disabled={saving || saved}
-            title={saved ? 'Saved to inspiration' : 'Save to inspiration'}
-          >
-            {saved ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
-          </button>
-        )}
-      </div>
+          {showSaveButton && (
+            <button
+              className={`ad-save-button ${saved ? 'saved' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleSave()
+              }}
+              disabled={saving || saved}
+              title={saved ? 'Saved to inspiration' : 'Save to inspiration'}
+            >
+              {saved ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
+            </button>
+          )}
+        </div>
 
       <div className="ad-content">
         <div className="ad-header">
@@ -88,11 +104,14 @@ const AdCard = ({ ad, onSave, isSaved = false, showSaveButton = true }: AdCardPr
         </div>
 
         {ad.ad_copy && (
-          <p className="ad-copy">
-            {ad.ad_copy.length > 100
-              ? `${ad.ad_copy.substring(0, 100)}...`
-              : ad.ad_copy}
-          </p>
+          <div
+            className="ad-copy"
+            dangerouslySetInnerHTML={{
+              __html: ad.ad_copy.length > 150
+                ? `${ad.ad_copy.substring(0, 150)}...`
+                : ad.ad_copy
+            }}
+          />
         )}
 
         <div className="ad-metadata">
@@ -117,6 +136,68 @@ const AdCard = ({ ad, onSave, isSaved = false, showSaveButton = true }: AdCardPr
         )}
       </div>
     </div>
+
+      {/* Video Modal */}
+      {showVideoModal && ad.video_url && (
+        <div className="video-modal-overlay" onClick={() => setShowVideoModal(false)}>
+          <div className="video-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="video-modal-close" onClick={() => setShowVideoModal(false)}>
+              <X size={24} />
+            </button>
+            <video
+              src={ad.video_url}
+              controls
+              autoPlay
+              className="video-player"
+            >
+              Your browser does not support video playback.
+            </video>
+            <div className="video-modal-info">
+              <h3>{ad.advertiser_name}</h3>
+              {ad.ad_copy && (
+                <div dangerouslySetInnerHTML={{ __html: ad.ad_copy }} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Modal */}
+      {showImageModal && ad.thumbnail_url && (
+        <div className="video-modal-overlay" onClick={() => setShowImageModal(false)}>
+          <div className="video-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="video-modal-close" onClick={() => setShowImageModal(false)}>
+              <X size={24} />
+            </button>
+            <img
+              src={ad.thumbnail_url}
+              alt={ad.advertiser_name}
+              className="image-viewer"
+              style={{ width: '100%', height: 'auto', display: 'block' }}
+            />
+            <div className="video-modal-info">
+              <h3>{ad.advertiser_name}</h3>
+              {ad.ad_copy && (
+                <div dangerouslySetInnerHTML={{ __html: ad.ad_copy }} />
+              )}
+              {ad.ad_data?.cta && (
+                <p><strong>CTA:</strong> {ad.ad_data.cta}</p>
+              )}
+              {ad.ad_data?.landing_page && (
+                <a
+                  href={ad.ad_data.landing_page}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--brand-red)', textDecoration: 'none', marginTop: '12px', display: 'inline-block' }}
+                >
+                  View Landing Page →
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

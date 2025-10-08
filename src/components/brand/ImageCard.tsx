@@ -115,18 +115,20 @@ const ImageCard = ({ image, onRemove }: ImageCardProps) => {
           </div>
         )}
 
-        <img
-          src={image.url}
-          alt={image.alt || 'Brand image'}
-          className={`image-preview ${imageLoaded ? 'loaded' : ''}`}
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-          style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            objectFit: 'contain'
-          }}
-        />
+        {image.url && (
+          <img
+            src={image.url}
+            alt={image.alt || 'Brand image'}
+            className={`image-preview ${imageLoaded ? 'loaded' : ''}`}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain'
+            }}
+          />
+        )}
       </div>
 
       {image.alt && (

@@ -1,0 +1,34 @@
+.target-audience-form-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.target-audience-form {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 32px;
+}
+
+.section-divider {
+  margin: 32px 0 20px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.section-subtitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .target-audience-form-page {
+    padding: 16px;
+  }
+
+  .target-audience-form {
+    padding: 20px;
+  }
+}

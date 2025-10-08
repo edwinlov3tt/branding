@@ -1,6 +1,5 @@
 .inspiration-library {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .filters-container {
@@ -129,4 +128,29 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Masonry Grid for Ad Cards */
+.ads-grid-masonry {
+  column-count: 4;
+  column-gap: 20px;
+  padding: 24px;
+}
+
+@media (max-width: 1400px) {
+  .ads-grid-masonry {
+    column-count: 3;
+  }
+}
+
+@media (max-width: 1024px) {
+  .ads-grid-masonry {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .ads-grid-masonry {
+    column-count: 1;
+  }
 }

@@ -267,6 +267,89 @@ export interface Campaign {
   status?: 'draft' | 'active' | 'paused' | 'completed';
 }
 
+// Brand Intelligence Types
+export interface BrandIntelligence {
+  id: string;
+  brand_id: string;
+  brand_name?: string;
+  tagline?: string;
+  mission?: string;
+  vision?: string;
+  values: string[];
+  brand_tone?: string;
+  brand_voice: {
+    formality?: string;
+    enthusiasm?: string;
+    professionalism?: string;
+    [key: string]: string | undefined;
+  };
+  messaging_themes: string[];
+  industry?: string;
+  target_market?: string;
+  unique_value_proposition?: string;
+  key_messages: string[];
+  content_themes: string[];
+  pages_analyzed: number;
+  analysis_confidence?: number;
+  raw_analysis?: any;
+  created_at: string;
+  updated_at: string;
+}
+
+// Competitor Analysis Types
+export interface CompetitorAnalysis {
+  id: string;
+  brand_id: string;
+  competitor_id?: string;
+  competitor_name: string;
+  competitor_website?: string;
+  facebook_page?: string;
+  total_ads_analyzed: number;
+  ad_ids: string[];
+  ads_data: any[];
+  overview?: string;
+  positioning?: string;
+  creative_strategy: {
+    ad_formats?: string[];
+    common_themes?: string[];
+    creative_patterns?: string[];
+    [key: string]: any;
+  };
+  messaging_analysis: {
+    tone?: string;
+    key_messages?: string[];
+    ctas?: string[];
+    value_propositions?: string[];
+    [key: string]: any;
+  };
+  visual_design_elements: {
+    colors?: string[];
+    imagery_style?: string;
+    typography?: string;
+    branding_consistency?: string;
+    [key: string]: any;
+  };
+  target_audience_insights: {
+    demographics?: string[];
+    psychographics?: string[];
+    pain_points?: string[];
+    [key: string]: any;
+  };
+  performance_indicators: {
+    engagement_patterns?: string;
+    ad_frequency?: string;
+    timing?: string;
+    [key: string]: any;
+  };
+  recommendations: string[];
+  key_findings: string[];
+  analysis_model?: string;
+  analysis_confidence?: number;
+  analysis_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Brand Management Types
 export interface Brand {
   id: string;
@@ -407,6 +490,9 @@ export interface AdSearchParams {
 export interface ForeplaySearchResponse {
   success: boolean;
   data: ForeplayAd[];
+  metadata?: {
+    cursor?: string;
+  };
 }
 
 export interface ForeplayAd {

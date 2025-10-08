@@ -1,0 +1,44 @@
+.dynamic-list-input {
+  margin-bottom: 20px;
+}
+
+.list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.list-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.list-item .form-input {
+  flex: 1;
+}
+
+.button-icon {
+  padding: 8px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: var(--transition-base);
+}
+
+.button-icon:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.button-danger-subtle:hover {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: var(--brand-red);
+  color: var(--brand-red);
+}

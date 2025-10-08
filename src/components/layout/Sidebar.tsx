@@ -28,10 +28,10 @@ const Sidebar = () => {
 
   const navItems = [
     { path: 'brand', label: 'Brand Profile', icon: Building2 },
-    { path: 'audiences', label: 'Target Audiences', icon: Users },
+    { path: 'products', label: 'Products & Services', icon: Package },
     { path: 'competitors', label: 'Competitor Analysis', icon: Swords },
     { path: 'inspiration', label: 'Inspiration Library', icon: Lightbulb },
-    { path: 'products', label: 'Products & Services', icon: Package },
+    { path: 'audiences', label: 'Target Audiences', icon: Users },
     { path: 'campaigns', label: 'Campaigns', icon: Target },
     { path: 'generations', label: 'Generated Creatives', icon: Palette },
     { path: 'settings', label: 'Settings', icon: Settings },
@@ -39,7 +39,7 @@ const Sidebar = () => {
 
   return (
     <aside className="sidebar">
-      <div className="logo">Creative AI</div>
+      <div className="logo">Branding AI</div>
       <nav className="nav">
         {currentBrand ? (
           navItems.map((item, index) => (

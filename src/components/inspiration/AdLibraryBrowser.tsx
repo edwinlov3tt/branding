@@ -15,9 +15,11 @@ const AdLibraryBrowser = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [isSearchMode, setIsSearchMode] = useState(false)
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [shownAdIds, setShownAdIds] = useState<Set<string>>(new Set())
 
   // Filter state
-  const [searchQuery, setSearchQuery] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all')
   const [selectedNiche, setSelectedNiche] = useState<string>('all')
@@ -49,10 +51,33 @@ const AdLibraryBrowser = () => {
     loadCuratedAds()
   }, [selectedPlatform, selectedNiche])
 
+  // Shuffle function for randomizing results
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+  }
+
+  // Deduplicate by brand - limit to 2 ads per brand in initial results
+  const deduplicateByBrand = (ads: AdInspiration[]): AdInspiration[] => {
+    const brandCount: Record<string, number> = {}
+    return ads.filter(ad => {
+      const brand = ad.advertiser_name
+      brandCount[brand] = (brandCount[brand] || 0) + 1
+      return brandCount[brand] <= 2 // Max 2 ads per brand initially
+    })
+  }
+
   const loadCuratedAds = async () => {
     setIsLoading(true)
     setError('')
     setIsSearchMode(false)
+    setCursor(null)
+    setHasMore(false)
+    setShownAdIds(new Set())
 
     try {
       const params: any = {}
@@ -60,7 +85,10 @@ const AdLibraryBrowser = () => {
       if (selectedNiche !== 'all') params.niche = selectedNiche
 
       const curatedAds = await getCuratedAds(params)
-      setAds(curatedAds)
+
+      // Shuffle curated ads for variety
+      const shuffled = shuffleArray(curatedAds)
+      setAds(shuffled)
     } catch (err: any) {
       setError(err.message || 'Failed to load ad inspirations')
       console.error('Failed to load curated ads:', err)
@@ -69,20 +97,50 @@ const AdLibraryBrowser = () => {
     }
   }
 
-  const handleSearch = async () => {
+  const handleSearch = async (loadMore = false) => {
     if (!searchInput.trim()) {
       // If search is empty, go back to curated ads
-      setSearchQuery('')
       loadCuratedAds()
       return
     }
 
     setIsLoading(true)
     setError('')
-    setIsSearchMode(true)
-    setSearchQuery(searchInput)
+
+    if (!loadMore) {
+      setIsSearchMode(true)
+      setCursor(null)
+      setShownAdIds(new Set())
+    }
 
     try {
+      // Step 1: Check database cache first (only on initial search)
+      if (!loadMore) {
+        console.log('🔍 Searching database cache first...')
+        const cacheParams: any = { search: searchInput, limit: 50 }
+        if (selectedPlatform !== 'all') cacheParams.platform = selectedPlatform
+        if (selectedNiche !== 'all') cacheParams.niche = selectedNiche
+
+        const cacheResponse = await getCuratedAds(cacheParams)
+        const cachedAds = cacheResponse
+
+        console.log(`Found ${cachedAds.length} ads in cache`)
+
+        // Step 2: If we have enough cached results (10+), use those
+        if (cachedAds.length >= 10) {
+          console.log('✅ Using cached results')
+          // Shuffle and deduplicate
+          const shuffled = shuffleArray(cachedAds)
+          const deduplicated = deduplicateByBrand(shuffled)
+          setAds(deduplicated)
+          setHasMore(false)
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // Step 3: Hit Foreplay API (initial or load more)
+      console.log(loadMore ? '📡 Loading more from Foreplay API...' : '📡 Fetching from Foreplay API...')
       const params: any = {
         query: searchInput,
         limit: 50
@@ -90,6 +148,7 @@ const AdLibraryBrowser = () => {
 
       if (selectedPlatform !== 'all') params.platform = selectedPlatform
       if (selectedNiche !== 'all') params.niche = selectedNiche
+      if (loadMore && cursor) params.cursor = cursor
 
       const response = await searchAds(params)
 
@@ -98,42 +157,63 @@ const AdLibraryBrowser = () => {
         id: ad.id || `fp-${Date.now()}-${Math.random()}`,
         foreplay_ad_id: ad.id,
         ad_data: {
-          first_seen: ad.first_seen,
-          last_seen: ad.last_seen,
-          cta: ad.cta,
-          landing_page: ad.landing_page,
-          is_live: ad.is_live
+          first_seen: ad.started_running ? new Date(ad.started_running).toISOString() : undefined,
+          last_seen: undefined,
+          cta: ad.cta_type,
+          landing_page: ad.link_url,
+          is_live: ad.live
         },
-        thumbnail_url: ad.thumbnail || ad.image_url || '',
-        video_url: ad.video,
-        platform: ad.platform || 'Facebook',
-        advertiser_name: ad.advertiser_name || ad.brand_name || 'Unknown',
-        niche: ad.niche,
-        ad_copy: ad.copy || ad.ad_copy,
+        thumbnail_url: ad.image || ad.thumbnail || ad.avatar || '',
+        video_url: ad.video || null,
+        platform: Array.isArray(ad.publisher_platform)
+          ? ad.publisher_platform[0]?.charAt(0).toUpperCase() + ad.publisher_platform[0]?.slice(1) || 'Facebook'
+          : 'Facebook',
+        advertiser_name: ad.name || 'Unknown',
+        niche: Array.isArray(ad.niches) ? ad.niches[0] : ad.niche || null,
+        ad_copy: ad.description || ad.copy || '',
         is_curated: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }))
 
-      setAds(foreplayAds)
+      // Filter out already shown ads
+      const newAds = foreplayAds.filter((ad: AdInspiration) => !shownAdIds.has(ad.id))
+
+      // Shuffle new ads for variety
+      const shuffled = shuffleArray(newAds)
+
+      // Update shown IDs
+      const newShownIds = new Set(shownAdIds)
+      shuffled.forEach(ad => newShownIds.add(ad.id))
+      setShownAdIds(newShownIds)
+
+      // Update cursor for next page
+      setCursor(response.metadata?.cursor || null)
+      setHasMore(!!response.metadata?.cursor)
+
+      // Append or replace ads
+      setAds(loadMore ? [...ads, ...shuffled] : shuffled)
     } catch (err: any) {
       setError(err.message || 'Failed to search ads')
-      console.error('Failed to search Foreplay API:', err)
+      console.error('Failed to search ads:', err)
     } finally {
       setIsLoading(false)
     }
   }
 
+  const handleLoadMore = () => {
+    handleSearch(true)
+  }
+
   const handleClearSearch = () => {
     setSearchInput('')
-    setSearchQuery('')
     setIsSearchMode(false)
     loadCuratedAds()
   }
 
   const handleSaveAd = async (ad: AdInspiration) => {
     if (!currentBrand) {
-      alert('Please select a brand first')
+      console.error('No brand selected')
       return
     }
 
@@ -149,11 +229,8 @@ const AdLibraryBrowser = () => {
         niche: ad.niche,
         ad_copy: ad.ad_copy
       })
-
-      // Show success message
-      alert('Ad saved to inspiration!')
     } catch (err: any) {
-      alert(err.message || 'Failed to save ad')
+      console.error('Failed to save ad:', err.message)
     }
   }
 
@@ -214,7 +291,7 @@ const AdLibraryBrowser = () => {
 
           <button
             className="search-button"
-            onClick={handleSearch}
+            onClick={() => handleSearch()}
             disabled={isLoading}
           >
             {isSearchMode ? 'Search Again' : 'Search'}
@@ -298,6 +375,20 @@ const AdLibraryBrowser = () => {
               />
             ))}
           </div>
+
+          {/* See More Button */}
+          {isSearchMode && hasMore && (
+            <div style={{ textAlign: 'center', padding: '32px 0' }}>
+              <button
+                className="search-button"
+                onClick={handleLoadMore}
+                disabled={isLoading}
+                style={{ minWidth: '200px' }}
+              >
+                {isLoading ? 'Loading...' : 'See More Ads'}
+              </button>
+            </div>
+          )}
         </>
       )}
 

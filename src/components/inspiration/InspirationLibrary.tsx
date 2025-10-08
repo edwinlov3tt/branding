@@ -1,19 +1,42 @@
-import { useState } from 'react'
-import { Layout, Search, Sparkles } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Search, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import type { Template } from '@/types'
+import type { AdInspiration } from '@/types'
 import { useBrand } from '@/contexts/BrandContext'
+import { getBrandAdInspirations } from '@/services/api/inspirationService'
+import AdCard from './AdCard'
 import './InspirationLibrary.css'
 
 const InspirationLibrary = () => {
   const navigate = useNavigate()
   const { currentBrand } = useBrand()
-  const [templates] = useState<Template[]>([])
+  const [ads, setAds] = useState<AdInspiration[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const categories = ['all', 'Social Media', 'Banners', 'Videos', 'Emails']
+  useEffect(() => {
+    if (currentBrand) {
+      loadBrandAds()
+    }
+  }, [currentBrand])
+
+  const loadBrandAds = async () => {
+    if (!currentBrand) return
+
+    setIsLoading(true)
+    try {
+      const brandAds = await getBrandAdInspirations(currentBrand.id)
+      setAds(brandAds)
+    } catch (error) {
+      console.error('Failed to load brand ad inspirations:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const categories = ['all', 'Facebook', 'Instagram', 'TikTok', 'YouTube', 'LinkedIn']
 
   const handleBrowseAdLibrary = () => {
     if (currentBrand) {
@@ -23,10 +46,10 @@ const InspirationLibrary = () => {
     }
   }
 
-  const filteredTemplates = templates.filter(t => {
-    const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         t.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredAds = ads.filter(ad => {
+    const matchesCategory = selectedCategory === 'all' || ad.platform === selectedCategory
+    const matchesSearch = ad.advertiser_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (ad.ad_copy && ad.ad_copy.toLowerCase().includes(searchQuery.toLowerCase()))
     return matchesCategory && matchesSearch
   })
 
@@ -65,24 +88,25 @@ const InspirationLibrary = () => {
           </div>
         </div>
 
-        {filteredTemplates.length > 0 ? (
-          <div className="templates-grid">
-            {filteredTemplates.map(template => (
-              <div key={template.id} className="template-card card">
-                <div className="template-thumbnail">
-                  <Layout size={48} />
-                </div>
-                <h3 className="template-name">{template.name}</h3>
-                <p className="template-category">{template.category}</p>
-                <p className="template-description">{template.description}</p>
-                <div className="template-footer">
-                  {template.isPremium && (
-                    <span className="status-badge status-warning">Premium</span>
-                  )}
-                  <button className="button button-primary">Use Template</button>
-                </div>
-              </div>
+        {isLoading ? (
+          <div className="empty-state">
+            <p className="empty-text">Loading your saved ads...</p>
+          </div>
+        ) : filteredAds.length > 0 ? (
+          <div className="ads-grid-masonry">
+            {filteredAds.map(ad => (
+              <AdCard
+                key={ad.id}
+                ad={ad}
+                isSaved={true}
+                showSaveButton={false}
+              />
             ))}
+          </div>
+        ) : ads.length > 0 ? (
+          <div className="empty-state">
+            <p className="empty-text">No ads match your filters</p>
+            <p className="empty-subtext">Try adjusting your search or category filters.</p>
           </div>
         ) : (
           <div className="empty-state">

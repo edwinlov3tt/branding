@@ -1,0 +1,21 @@
+.competitor-form-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.competitor-form {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 32px;
+}
+
+@media (max-width: 768px) {
+  .competitor-form-page {
+    padding: 16px;
+  }
+
+  .competitor-form {
+    padding: 20px;
+  }
+}
