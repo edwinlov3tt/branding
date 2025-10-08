@@ -173,31 +173,20 @@
 }
 
 .ads-grid-masonry {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  grid-auto-rows: 10px; /* Fine-grained control for masonry */
+  column-count: 2;
+  column-gap: 20px;
 }
 
-/* Masonry grid items span based on content height */
 .ads-grid-masonry > * {
-  /* Heights will vary naturally based on content */
+  break-inside: avoid;
+  margin-bottom: 20px;
+  display: inline-block;
+  width: 100%;
 }
 
-/* Alternative: Column-based masonry layout */
-@media (min-width: 768px) {
+@media (min-width: 900px) {
   .ads-grid-masonry {
     column-count: 3;
-    column-gap: 20px;
-    grid-template-columns: unset;
-    grid-auto-rows: unset;
-  }
-
-  .ads-grid-masonry > * {
-    break-inside: avoid;
-    margin-bottom: 20px;
-    display: inline-block;
-    width: 100%;
   }
 }
 
@@ -313,5 +302,6 @@
 
   .ads-grid-masonry {
     column-count: 1;
+    column-gap: 0;
   }
 }
