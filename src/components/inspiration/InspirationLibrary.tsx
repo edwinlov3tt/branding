@@ -1,15 +1,27 @@
 import { useState } from 'react'
-import { Layout, Search } from 'lucide-react'
+import { Layout, Search, Sparkles } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import type { Template } from '@/types'
+import { useBrand } from '@/contexts/BrandContext'
 import './InspirationLibrary.css'
 
 const InspirationLibrary = () => {
+  const navigate = useNavigate()
+  const { currentBrand } = useBrand()
   const [templates] = useState<Template[]>([])
 
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   const categories = ['all', 'Social Media', 'Banners', 'Videos', 'Emails']
+
+  const handleBrowseAdLibrary = () => {
+    if (currentBrand) {
+      navigate(`/ad-library/${currentBrand.slug}/${currentBrand.shortId}`)
+    } else {
+      navigate('/ad-library')
+    }
+  }
 
   const filteredTemplates = templates.filter(t => {
     const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory
@@ -23,7 +35,10 @@ const InspirationLibrary = () => {
       <div className="section">
         <div className="section-header">
           <h2 className="section-title">Inspiration Library</h2>
-          <button className="button button-primary">Add Inspiration</button>
+          <button className="button button-primary" onClick={handleBrowseAdLibrary}>
+            <Sparkles size={18} />
+            Browse Ad Library
+          </button>
         </div>
 
         <div className="filters-container">
@@ -72,7 +87,11 @@ const InspirationLibrary = () => {
         ) : (
           <div className="empty-state">
             <p className="empty-text">No inspiration templates added yet</p>
-            <p className="empty-subtext">Click "Add Inspiration" above to save creative templates and reference materials for future campaigns.</p>
+            <p className="empty-subtext">Click "Browse Ad Library" above to discover and save ad creatives from top brands.</p>
+            <button className="button button-primary empty-cta" onClick={handleBrowseAdLibrary}>
+              <Sparkles size={18} />
+              Browse Ad Library
+            </button>
           </div>
         )}
       </div>

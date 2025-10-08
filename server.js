@@ -535,6 +535,239 @@ app.get('/api/brand-assets', async (req, res) => {
   }
 });
 
+// Ad Inspirations endpoints
+// GET all curated ads (platform-wide)
+app.get('/api/ad-inspirations/curated', async (req, res) => {
+  try {
+    const { platform, niche, limit = 50 } = req.query;
+
+    let query = 'SELECT * FROM ad_inspirations WHERE is_curated = true';
+    const params = [];
+    let paramIndex = 1;
+
+    if (platform) {
+      query += ` AND platform = $${paramIndex}`;
+      params.push(platform);
+      paramIndex++;
+    }
+
+    if (niche) {
+      query += ` AND niche = $${paramIndex}`;
+      params.push(niche);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
+    params.push(parseInt(limit));
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching curated ads:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch curated ads'
+    });
+  }
+});
+
+// GET ad inspirations for a specific brand
+app.get('/api/ad-inspirations', async (req, res) => {
+  try {
+    const { brand_id } = req.query;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Brand ID is required'
+      });
+    }
+
+    // Check if table exists first
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ad_inspirations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        brand_id UUID REFERENCES brands(id) ON DELETE CASCADE,
+        foreplay_ad_id VARCHAR(255),
+        ad_data JSONB NOT NULL,
+        thumbnail_url TEXT NOT NULL,
+        video_url TEXT,
+        platform VARCHAR(50) NOT NULL,
+        advertiser_name VARCHAR(255) NOT NULL,
+        niche VARCHAR(100),
+        ad_copy TEXT,
+        is_curated BOOLEAN DEFAULT false,
+        saved_by_brand_id UUID REFERENCES brands(id) ON DELETE SET NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const result = await pool.query(
+      'SELECT * FROM ad_inspirations WHERE brand_id = $1 OR saved_by_brand_id = $1 ORDER BY created_at DESC',
+      [brand_id]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching ad inspirations:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch ad inspirations'
+    });
+  }
+});
+
+// POST - Save ad to brand inspiration
+app.post('/api/ad-inspirations', async (req, res) => {
+  try {
+    const {
+      brand_id,
+      foreplay_ad_id,
+      ad_data,
+      thumbnail_url,
+      video_url,
+      platform,
+      advertiser_name,
+      niche,
+      ad_copy
+    } = req.body;
+
+    if (!brand_id || !thumbnail_url || !platform || !advertiser_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Brand ID, thumbnail URL, platform, and advertiser name are required'
+      });
+    }
+
+    // Check if ad already saved by this brand
+    const existing = await pool.query(
+      'SELECT id FROM ad_inspirations WHERE brand_id = $1 AND foreplay_ad_id = $2',
+      [brand_id, foreplay_ad_id]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Ad already saved to this brand'
+      });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO ad_inspirations
+       (brand_id, foreplay_ad_id, ad_data, thumbnail_url, video_url, platform, advertiser_name, niche, ad_copy, saved_by_brand_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $1)
+       RETURNING *`,
+      [brand_id, foreplay_ad_id, ad_data, thumbnail_url, video_url, platform, advertiser_name, niche, ad_copy]
+    );
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error saving ad inspiration:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save ad inspiration',
+      message: error.message
+    });
+  }
+});
+
+// DELETE - Remove ad from brand inspiration
+app.delete('/api/ad-inspirations', async (req, res) => {
+  try {
+    const { id, brand_id } = req.query;
+
+    if (!id || !brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Ad ID and Brand ID are required'
+      });
+    }
+
+    const result = await pool.query(
+      'DELETE FROM ad_inspirations WHERE id = $1 AND brand_id = $2 RETURNING *',
+      [id, brand_id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ad inspiration not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Ad inspiration removed successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting ad inspiration:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete ad inspiration'
+    });
+  }
+});
+
+// Foreplay API proxy - search ads
+app.post('/api/foreplay/search-ads', async (req, res) => {
+  try {
+    const { query, platform, niche, limit = 20 } = req.body;
+    const foreplayApiKey = process.env.FOREPLAY_API_KEY;
+
+    if (!foreplayApiKey) {
+      return res.status(503).json({
+        success: false,
+        error: 'Foreplay API key not configured'
+      });
+    }
+
+    // Call Foreplay API
+    const response = await axios.get('https://public.api.foreplay.co/api/brand/getAdsByBrandId', {
+      headers: {
+        'Authorization': `Bearer ${foreplayApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        query,
+        platform,
+        niche,
+        limit
+      },
+      timeout: 30000
+    });
+
+    res.json({
+      success: true,
+      data: response.data
+    });
+  } catch (error) {
+    console.error('Foreplay API error:', error.message);
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        error: error.response.data?.error || 'Foreplay API request failed'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to search ads'
+    });
+  }
+});
+
 // Fallback route - handle all other requests
 app.use((req, res) => {
   res.status(404).json({
@@ -558,4 +791,9 @@ app.listen(PORT, () => {
   console.log('   DELETE /api/brands - Delete brand');
   console.log('   POST /api/brand-assets - Save brand assets');
   console.log('   GET  /api/brand-assets - Get brand assets');
+  console.log('   GET  /api/ad-inspirations/curated - Get curated ad inspirations');
+  console.log('   GET  /api/ad-inspirations - Get brand ad inspirations');
+  console.log('   POST /api/ad-inspirations - Save ad inspiration');
+  console.log('   DELETE /api/ad-inspirations - Remove ad inspiration');
+  console.log('   POST /api/foreplay/search-ads - Search ads via Foreplay API');
 });

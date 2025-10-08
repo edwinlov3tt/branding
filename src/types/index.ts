@@ -369,3 +369,57 @@ export interface Settings {
     autoSave: boolean;
   };
 }
+
+// Ad Inspiration Types
+export interface AdInspiration {
+  id: string;
+  brand_id?: string;
+  foreplay_ad_id?: string;
+  ad_data: AdMetadata;
+  thumbnail_url: string;
+  video_url?: string;
+  platform: 'Facebook' | 'Instagram' | 'TikTok' | 'YouTube' | 'LinkedIn' | 'Pinterest' | 'Twitter';
+  advertiser_name: string;
+  niche?: string;
+  ad_copy?: string;
+  is_curated: boolean;
+  saved_by_brand_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdMetadata {
+  first_seen?: string;
+  last_seen?: string;
+  cta?: string;
+  landing_page?: string;
+  is_live?: boolean;
+  [key: string]: any;
+}
+
+export interface AdSearchParams {
+  query?: string;
+  platform?: string;
+  niche?: string;
+  limit?: number;
+}
+
+export interface ForeplaySearchResponse {
+  success: boolean;
+  data: ForeplayAd[];
+}
+
+export interface ForeplayAd {
+  id: string;
+  thumbnail: string;
+  video?: string;
+  copy: string;
+  advertiser_name: string;
+  platform: string;
+  niche?: string;
+  is_live: boolean;
+  first_seen: string;
+  last_seen: string;
+  landing_page?: string;
+  cta?: string;
+}

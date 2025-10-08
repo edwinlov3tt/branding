@@ -4,6 +4,7 @@ import BrandProfile from './components/brand/BrandProfile'
 import TargetAudienceList from './components/audiences/TargetAudienceList'
 import CompetitorAnalysis from './components/competitors/CompetitorAnalysis'
 import InspirationLibrary from './components/inspiration/InspirationLibrary'
+import AdLibraryBrowser from './components/inspiration/AdLibraryBrowser'
 import ProductsServices from './components/products/ProductsServices'
 import CampaignsList from './components/campaigns/CampaignsList'
 import GenerationsList from './components/generations/GenerationsList'
@@ -26,6 +27,10 @@ function App() {
 
             {/* All Brands page (no brand selected) */}
             <Route path="brands" element={<AllBrands />} />
+
+            {/* Ad Library Browser (full-page) */}
+            <Route path="ad-library" element={<AdLibraryBrowser />} />
+            <Route path="ad-library/:slug/:shortId" element={<AdLibraryBrowser />} />
 
             {/* Brand-scoped routes with slug and short ID */}
             <Route path="brand/:slug/:shortId" element={<BrandProfile />} />
