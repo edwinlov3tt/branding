@@ -53,6 +53,9 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Serve static files from public directory
+app.use(express.static('public'));
+
 // Request logging middleware
 app.use((req, res, next) => {
   console.log(`📨 ${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -152,8 +155,13 @@ app.get('/api/test-all', async (req, res) => {
   res.json(results);
 });
 
-// Status Dashboard - HTML interface
-app.get('/status', async (req, res) => {
+// Status Dashboard - Redirect to comprehensive dashboard
+app.get('/status', (req, res) => {
+  res.redirect('/status.html');
+});
+
+// Legacy Status Dashboard - HTML interface (kept for backwards compatibility)
+app.get('/status-old', async (req, res) => {
   let backendStatus = 'ok';
   let databaseStatus = { status: 'unknown', time: null, error: null };
   let gtmApiStatus = { status: 'unknown', data: null, error: null };

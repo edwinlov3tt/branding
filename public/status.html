@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comprehensive System Status Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+      color: #ffffff;
+      min-height: 100vh;
+    }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #333;
+    }
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .timestamp {
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      border-bottom: 2px solid #333;
+      padding-bottom: 10px;
+    }
+    .tab {
+      padding: 12px 24px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+    .tab:hover { background: #252525; }
+    .tab.active {
+      background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+      border-color: #ef4444;
+    }
+
+    /* Content */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #ef4444;
+      margin-bottom: 8px;
+    }
+    .stat-label {
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    .endpoints-table {
+      width: 100%;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .endpoints-table th {
+      text-align: left;
+      padding: 16px;
+      background: #2a2a2a;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .endpoints-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 0.9rem;
+    }
+    .endpoints-table tr:hover { background: #252525; }
+
+    .endpoint-method {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      min-width: 60px;
+      text-align: center;
+    }
+    .method-get { background: #059669; color: #fff; }
+    .method-post { background: #2563eb; color: #fff; }
+    .method-put { background: #d97706; color: #fff; }
+    .method-delete { background: #dc2626; color: #fff; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-ok { background: #059669; color: #fff; }
+    .status-error { background: #dc2626; color: #fff; }
+    .status-loading { background: #6b7280; color: #fff; }
+
+    .test-btn {
+      background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: transform 0.2s;
+    }
+    .test-btn:hover { transform: scale(1.05); }
+    .test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .actions {
+      text-align: center;
+      margin-top: 30px;
+      padding: 20px;
+    }
+    .refresh-btn {
+      background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      margin: 0 10px;
+      transition: transform 0.2s;
+    }
+    .refresh-btn:hover { transform: scale(1.05); }
+
+    .loading { text-align: center; padding: 40px; color: #888; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 Comprehensive System Status Dashboard</h1>
+      <div class="timestamp" id="timestamp">Loading...</div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid" id="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="brandCount">-</div>
+        <div class="stat-label">Brands</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="audienceCount">-</div>
+        <div class="stat-label">Audiences</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="productCount">-</div>
+        <div class="stat-label">Products</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="campaignCount">-</div>
+        <div class="stat-label">Campaigns</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="competitorCount">-</div>
+        <div class="stat-label">Competitors</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="adCount">-</div>
+        <div class="stat-label">Ad Inspirations</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('core')">🏠 Core & Health</div>
+      <div class="tab" onclick="showTab('brands')">🎨 Brands</div>
+      <div class="tab" onclick="showTab('audiences')">👥 Audiences</div>
+      <div class="tab" onclick="showTab('products')">📦 Products</div>
+      <div class="tab" onclick="showTab('campaigns')">📢 Campaigns</div>
+      <div class="tab" onclick="showTab('competitors')">🔍 Competitors</div>
+      <div class="tab" onclick="showTab('ads')">💡 Ad Inspirations</div>
+      <div class="tab" onclick="showTab('ai')">🤖 AI Generation</div>
+      <div class="tab" onclick="showTab('admin')">⚙️ Admin</div>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="core" class="tab-content active">
+      <table class="endpoints-table" id="coreTable">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="brands" class="tab-content">
+      <table class="endpoints-table" id="brandsTable">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="audiences" class="tab-content">
+      <table class="endpoints-table" id="audiencesTable">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="products" class="tab-content">
+      <table class="endpoints-table" id="productsTable">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="campaigns" class="tab-content">
+      <table class="endpoints-table" id="campaignsTable">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="competitors" class="tab-content">
+      <table class="endpoints-table" id="competitorsTable">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="ads" class="tab-content">
+      <table class="endpoints-table" id="adsTable">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="ai" class="tab-content">
+      <table class="endpoints-table" id="aiTable">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="admin" class="tab-content">
+      <table class="endpoints-table" id="adminTable">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button class="refresh-btn" onclick="loadAllData()">🔄 Refresh All</button>
+      <button class="refresh-btn" onclick="testAllEndpoints()" style="background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);">
+        🧪 Test All Endpoints
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '';
+
+    const endpoints = {
+      core: [
+        { method: 'GET', path: '/health', description: 'Backend health check' },
+        { method: 'GET', path: '/status', description: 'System status dashboard' },
+        { method: 'GET', path: '/api/test-all', description: 'Comprehensive test suite' },
+      ],
+      brands: [
+        { method: 'GET', path: '/api/brands', description: 'List all brands' },
+        { method: 'GET', path: '/api/brands/:slug/:shortId', description: 'Get brand by identifiers' },
+        { method: 'POST', path: '/api/brands', description: 'Create new brand' },
+        { method: 'PUT', path: '/api/brands', description: 'Update brand' },
+        { method: 'DELETE', path: '/api/brands', description: 'Delete brand' },
+        { method: 'POST', path: '/api/extract-brand', description: 'Extract brand assets from URL' },
+        { method: 'POST', path: '/api/discover-brand-pages', description: 'Discover brand pages' },
+        { method: 'POST', path: '/api/brand-assets', description: 'Save brand assets' },
+        { method: 'GET', path: '/api/brand-assets', description: 'Get brand assets' },
+        { method: 'GET', path: '/api/brand-profile', description: 'Get brand profile' },
+        { method: 'POST', path: '/api/brand-profile', description: 'Create brand profile' },
+        { method: 'GET', path: '/api/brand-images', description: 'Get brand images' },
+        { method: 'POST', path: '/api/brand-images', description: 'Save brand images' },
+        { method: 'DELETE', path: '/api/brand-images', description: 'Clear brand images cache' },
+      ],
+      audiences: [
+        { method: 'GET', path: '/api/target-audiences', description: 'List target audiences' },
+        { method: 'POST', path: '/api/target-audiences', description: 'Create target audience' },
+        { method: 'PUT', path: '/api/target-audiences', description: 'Update target audience' },
+        { method: 'DELETE', path: '/api/target-audiences', description: 'Delete target audience' },
+      ],
+      products: [
+        { method: 'GET', path: '/api/products-services', description: 'List products/services' },
+        { method: 'POST', path: '/api/products-services', description: 'Create product/service' },
+        { method: 'PUT', path: '/api/products-services', description: 'Update product/service' },
+        { method: 'DELETE', path: '/api/products-services', description: 'Delete product/service' },
+      ],
+      campaigns: [
+        { method: 'GET', path: '/api/campaigns', description: 'List campaigns' },
+        { method: 'POST', path: '/api/campaigns', description: 'Create campaign' },
+        { method: 'PUT', path: '/api/campaigns', description: 'Update campaign' },
+        { method: 'DELETE', path: '/api/campaigns', description: 'Delete campaign' },
+        { method: 'POST', path: '/api/campaigns/:id/generate-creatives', description: 'Generate ad creatives' },
+        { method: 'GET', path: '/api/generated-creatives', description: 'List generated creatives' },
+      ],
+      competitors: [
+        { method: 'GET', path: '/api/competitors', description: 'List competitors' },
+        { method: 'POST', path: '/api/competitors', description: 'Create competitor' },
+        { method: 'PUT', path: '/api/competitors', description: 'Update competitor' },
+        { method: 'DELETE', path: '/api/competitors', description: 'Delete competitor' },
+        { method: 'GET', path: '/api/competitor-analyses', description: 'List competitor analyses' },
+        { method: 'GET', path: '/api/competitor-analyses/:id', description: 'Get competitor analysis' },
+        { method: 'POST', path: '/api/competitor-analyses', description: 'Create competitor analysis' },
+        { method: 'DELETE', path: '/api/competitor-analyses/:id', description: 'Delete competitor analysis' },
+      ],
+      ads: [
+        { method: 'GET', path: '/api/ad-inspirations', description: 'List ad inspirations' },
+        { method: 'GET', path: '/api/ad-inspirations/curated', description: 'Get curated ads' },
+        { method: 'POST', path: '/api/ad-inspirations', description: 'Save ad inspiration' },
+        { method: 'DELETE', path: '/api/ad-inspirations', description: 'Delete ad inspiration' },
+        { method: 'POST', path: '/api/foreplay/search-ads', description: 'Search ads via Foreplay' },
+      ],
+      ai: [
+        { method: 'POST', path: '/api/ai', description: 'AI processing endpoint' },
+        { method: 'POST', path: '/api/ai/generate-brand-intelligence', description: 'Generate brand intelligence' },
+        { method: 'POST', path: '/api/ai/generate-audiences', description: 'Generate target audiences' },
+        { method: 'POST', path: '/api/ai/analyze-competitor', description: 'Analyze competitor' },
+        { method: 'POST', path: '/api/ai/generate-products', description: 'Generate products/services' },
+        { method: 'POST', path: '/api/ai/generate-campaigns', description: 'Generate campaigns' },
+        { method: 'POST', path: '/api/ai/generate-ad-copy', description: 'Generate ad copy' },
+      ],
+      admin: [
+        { method: 'POST', path: '/api/admin/run-migrations', description: 'Run database migrations' },
+        { method: 'GET', path: '/api/brand-intelligence', description: 'Get brand intelligence' },
+        { method: 'POST', path: '/api/brand-intelligence', description: 'Save brand intelligence' },
+        { method: 'GET', path: '/api/brand-settings', description: 'Get brand settings' },
+        { method: 'POST', path: '/api/brand-settings', description: 'Save brand settings' },
+      ]
+    };
+
+    function showTab(tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById(tabName).classList.add('active');
+    }
+
+    function renderEndpoints() {
+      Object.keys(endpoints).forEach(category => {
+        const tableBody = document.querySelector(`#${category}Table tbody`);
+        tableBody.innerHTML = endpoints[category].map(endpoint => `
+          <tr>
+            <td><span class="endpoint-method method-${endpoint.method.toLowerCase()}">${endpoint.method}</span></td>
+            <td><code>${endpoint.path}</code></td>
+            <td>${endpoint.description}</td>
+            <td><span class="status-badge status-loading" id="status-${category}-${endpoint.path.replace(/[^a-z0-9]/gi, '-')}">LOADING</span></td>
+            <td><button class="test-btn" onclick="testEndpoint('${endpoint.method}', '${endpoint.path}', '${category}')">Test</button></td>
+          </tr>
+        `).join('');
+      });
+    }
+
+    async function loadAllData() {
+      document.getElementById('timestamp').textContent = `Loading... ${new Date().toLocaleString()}`;
+
+      try {
+        const response = await fetch(`${API_BASE}/api/brands`);
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          document.getElementById('brandCount').textContent = data.data.length;
+          document.getElementById('audienceCount').textContent = data.data[0]?.audience_count || 0;
+          document.getElementById('productCount').textContent = data.data[0]?.product_count || 0;
+          document.getElementById('campaignCount').textContent = data.data[0]?.campaign_count || 0;
+          document.getElementById('competitorCount').textContent = data.data[0]?.competitor_count || 0;
+          document.getElementById('adCount').textContent = data.data[0]?.generation_count || 0;
+        }
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+
+      document.getElementById('timestamp').textContent = `Last updated: ${new Date().toLocaleString()}`;
+    }
+
+    async function testEndpoint(method, path, category) {
+      const statusId = `status-${category}-${path.replace(/[^a-z0-9]/gi, '-')}`;
+      const statusBadge = document.getElementById(statusId);
+      statusBadge.textContent = 'TESTING...';
+      statusBadge.className = 'status-badge status-loading';
+
+      try {
+        let response;
+        if (method === 'GET') {
+          response = await fetch(`${API_BASE}${path.replace(':slug/:shortId', 'test/test').replace(':id', 'test')}?brand_id=test`, { timeout: 5000 });
+        } else {
+          response = await fetch(`${API_BASE}${path}`, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ test: true })
+          });
+        }
+
+        if (response.ok) {
+          statusBadge.textContent = 'OK';
+          statusBadge.className = 'status-badge status-ok';
+        } else {
+          statusBadge.textContent = `ERROR ${response.status}`;
+          statusBadge.className = 'status-badge status-error';
+        }
+      } catch (error) {
+        statusBadge.textContent = 'ERROR';
+        statusBadge.className = 'status-badge status-error';
+      }
+    }
+
+    async function testAllEndpoints() {
+      for (const category of Object.keys(endpoints)) {
+        for (const endpoint of endpoints[category]) {
+          await testEndpoint(endpoint.method, endpoint.path, category);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+    }
+
+    // Initialize
+    renderEndpoints();
+    loadAllData();
+  </script>
+</body>
+</html>
