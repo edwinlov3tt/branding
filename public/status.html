@@ -361,6 +361,29 @@
       <button class="refresh-btn" onclick="testAllEndpoints()" style="background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);">
         🧪 Test All Endpoints
       </button>
+      <button class="refresh-btn" onclick="runCRUDTests()" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);" id="crudTestBtn">
+        🔬 Run CRUD Tests
+      </button>
+    </div>
+
+    <!-- CRUD Test Console -->
+    <div id="crudTestConsole" style="margin-top: 30px; background: #1e1e1e; border: 1px solid #333; border-radius: 12px; padding: 24px; display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.2rem;">🔬 CRUD Test Suite</h3>
+          <p style="color: #888; font-size: 0.9rem; margin: 4px 0 0 0;">
+            Comprehensive Create-Read-Update-Delete testing
+          </p>
+        </div>
+        <div>
+          <button class="test-btn" onclick="clearCRUDLog()">
+            🗑️ Clear
+          </button>
+        </div>
+      </div>
+      <div id="crudTestLog" style="max-height: 500px; overflow-y: auto; background: #0f0f0f; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 0.85rem;">
+        <div style="color: #888; text-align: center; padding: 20px;">Ready to run CRUD tests ✅</div>
+      </div>
     </div>
 
     <!-- Error Console -->
@@ -792,6 +815,345 @@ URL: ${err.url || 'N/A'}
     function clearErrors() {
       errorLog = [];
       updateErrorConsole();
+    }
+
+    // ========================================
+    // CRUD Test Suite Functions
+    // ========================================
+
+    function crudLog(message, type = 'info') {
+      const console = document.getElementById('crudTestLog');
+      const colors = {
+        info: '#10b981',
+        success: '#059669',
+        error: '#dc2626',
+        warn: '#d97706'
+      };
+
+      const timestamp = new Date().toLocaleTimeString();
+      const line = document.createElement('div');
+      line.style.color = colors[type] || colors.info;
+      line.style.marginBottom = '4px';
+      line.innerHTML = `[${timestamp}] ${message}`;
+      console.appendChild(line);
+      console.scrollTop = console.scrollHeight;
+    }
+
+    function updateCRUDStatus(path, category, status) {
+      const statusId = `status-${category}-${path.replace(/[^a-z0-9]/gi, '-')}`;
+      const badge = document.getElementById(statusId);
+      if (badge) {
+        badge.textContent = status === 'ok' ? 'OK' : 'ERROR';
+        badge.className = `status-badge status-${status}`;
+      }
+    }
+
+    function clearCRUDLog() {
+      document.getElementById('crudTestLog').innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">Ready to run CRUD tests ✅</div>';
+    }
+
+    async function runCRUDTests() {
+      // Show console and clear log
+      document.getElementById('crudTestConsole').style.display = 'block';
+      clearCRUDLog();
+
+      // Disable button
+      const btn = document.getElementById('crudTestBtn');
+      btn.disabled = true;
+      btn.textContent = '🔬 Running...';
+
+      crudLog('🚀 Starting Comprehensive CRUD Test Suite', 'info');
+      crudLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+
+      const testData = {
+        brandId: null,
+        productId: null,
+        audienceId: null,
+        campaignId: null,
+        competitorId: null,
+        analysisId: null
+      };
+
+      try {
+        // TEST 1: Create Brand
+        crudLog('\n📝 TEST 1: Creating test brand...', 'info');
+        const brandResponse = await fetch(`${API_BASE}/api/brands`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'CRUD Test Brand ' + Date.now(),
+            website: 'https://crudtest.example.com',
+            logo_url: 'https://via.placeholder.com/150',
+            primary_color: '#FF0000'
+          })
+        });
+        const brandData = await brandResponse.json();
+        if (brandData.success && brandData.data) {
+          testData.brandId = brandData.data.id;
+          crudLog(`✅ Brand created: ${testData.brandId}`, 'success');
+          updateCRUDStatus('/api/brands', 'brands', 'ok');
+        } else {
+          throw new Error('Failed to create brand');
+        }
+
+        // TEST 2: Update Brand
+        crudLog('\n📝 TEST 2: Updating brand...', 'info');
+        const updateBrandResponse = await fetch(`${API_BASE}/api/brands`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: testData.brandId,
+            name: 'CRUD Test Brand - Updated',
+            primary_color: '#0000FF'
+          })
+        });
+        if (updateBrandResponse.ok) {
+          crudLog('✅ Brand updated successfully', 'success');
+          updateCRUDStatus('/api/brands', 'brands', 'ok');
+        } else {
+          throw new Error('Failed to update brand');
+        }
+
+        // TEST 3: Create Product/Service
+        crudLog('\n📝 TEST 3: Creating product/service...', 'info');
+        const productResponse = await fetch(`${API_BASE}/api/products-services`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brand_id: testData.brandId,
+            name: 'Test Product',
+            category: 'Software',
+            description: 'Test product for CRUD',
+            price: '$99.99',
+            features: ['Feature 1', 'Feature 2']
+          })
+        });
+        const productData = await productResponse.json();
+        if (productData.success && productData.data) {
+          testData.productId = productData.data.id;
+          crudLog(`✅ Product created: ${testData.productId}`, 'success');
+          updateCRUDStatus('/api/products-services', 'products', 'ok');
+        } else {
+          throw new Error('Failed to create product');
+        }
+
+        // TEST 4: Update Product/Service
+        crudLog('\n📝 TEST 4: Updating product/service...', 'info');
+        const updateProductResponse = await fetch(`${API_BASE}/api/products-services`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: testData.productId,
+            name: 'Test Product - Updated',
+            price: '$149.99'
+          })
+        });
+        if (updateProductResponse.ok) {
+          crudLog('✅ Product updated successfully', 'success');
+          updateCRUDStatus('/api/products-services', 'products', 'ok');
+        } else {
+          throw new Error('Failed to update product');
+        }
+
+        // TEST 5: Delete Product/Service
+        crudLog('\n📝 TEST 5: Deleting product/service...', 'info');
+        const deleteProductResponse = await fetch(`${API_BASE}/api/products-services`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: testData.productId })
+        });
+        if (deleteProductResponse.ok) {
+          crudLog('✅ Product deleted successfully', 'success');
+          updateCRUDStatus('/api/products-services', 'products', 'ok');
+        } else {
+          throw new Error('Failed to delete product');
+        }
+
+        // TEST 6: Create Target Audience
+        crudLog('\n📝 TEST 6: Creating target audience...', 'info');
+        const audienceResponse = await fetch(`${API_BASE}/api/target-audiences`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brand_id: testData.brandId,
+            name: 'Test Audience',
+            description: 'Test audience for CRUD',
+            age_range: '25-35',
+            interests: ['Technology', 'Innovation']
+          })
+        });
+        const audienceData = await audienceResponse.json();
+        if (audienceData.success && audienceData.data) {
+          testData.audienceId = audienceData.data.id;
+          crudLog(`✅ Audience created: ${testData.audienceId}`, 'success');
+          updateCRUDStatus('/api/target-audiences', 'audiences', 'ok');
+        } else {
+          throw new Error('Failed to create audience');
+        }
+
+        // TEST 7: Update Target Audience
+        crudLog('\n📝 TEST 7: Updating target audience...', 'info');
+        const updateAudienceResponse = await fetch(`${API_BASE}/api/target-audiences`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: testData.audienceId,
+            name: 'Test Audience - Updated',
+            age_range: '22-38'
+          })
+        });
+        if (updateAudienceResponse.ok) {
+          crudLog('✅ Audience updated successfully', 'success');
+          updateCRUDStatus('/api/target-audiences', 'audiences', 'ok');
+        } else {
+          throw new Error('Failed to update audience');
+        }
+
+        // TEST 8: Delete Target Audience
+        crudLog('\n📝 TEST 8: Deleting target audience...', 'info');
+        const deleteAudienceResponse = await fetch(`${API_BASE}/api/target-audiences`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: testData.audienceId })
+        });
+        if (deleteAudienceResponse.ok) {
+          crudLog('✅ Audience deleted successfully', 'success');
+          updateCRUDStatus('/api/target-audiences', 'audiences', 'ok');
+        } else {
+          throw new Error('Failed to delete audience');
+        }
+
+        // TEST 9: Create Campaign
+        crudLog('\n📝 TEST 9: Creating campaign...', 'info');
+        const campaignResponse = await fetch(`${API_BASE}/api/campaigns`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brand_id: testData.brandId,
+            name: 'Test Campaign',
+            objective: 'Product Launch',
+            marketing_objectives: ['Brand Awareness'],
+            channels: ['Social Media'],
+            status: 'planning'
+          })
+        });
+        const campaignData = await campaignResponse.json();
+        if (campaignData.success && campaignData.data) {
+          testData.campaignId = campaignData.data.id;
+          crudLog(`✅ Campaign created: ${testData.campaignId}`, 'success');
+          updateCRUDStatus('/api/campaigns', 'campaigns', 'ok');
+        } else {
+          throw new Error('Failed to create campaign');
+        }
+
+        // TEST 10: Update Campaign
+        crudLog('\n📝 TEST 10: Updating campaign...', 'info');
+        const updateCampaignResponse = await fetch(`${API_BASE}/api/campaigns`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: testData.campaignId,
+            name: 'Test Campaign - Updated',
+            status: 'active'
+          })
+        });
+        if (updateCampaignResponse.ok) {
+          crudLog('✅ Campaign updated successfully', 'success');
+          updateCRUDStatus('/api/campaigns', 'campaigns', 'ok');
+        } else {
+          throw new Error('Failed to update campaign');
+        }
+
+        // TEST 11: Delete Campaign
+        crudLog('\n📝 TEST 11: Deleting campaign...', 'info');
+        const deleteCampaignResponse = await fetch(`${API_BASE}/api/campaigns`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: testData.campaignId })
+        });
+        if (deleteCampaignResponse.ok) {
+          crudLog('✅ Campaign deleted successfully', 'success');
+          updateCRUDStatus('/api/campaigns', 'campaigns', 'ok');
+        } else {
+          throw new Error('Failed to delete campaign');
+        }
+
+        // TEST 12: Create Competitor
+        crudLog('\n📝 TEST 12: Creating competitor...', 'info');
+        const competitorResponse = await fetch(`${API_BASE}/api/competitors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brand_id: testData.brandId,
+            name: 'Test Competitor',
+            website: 'https://competitor.com',
+            strengths: ['Strong brand'],
+            weaknesses: ['Higher pricing']
+          })
+        });
+        const competitorData = await competitorResponse.json();
+        if (competitorData.success && competitorData.data) {
+          testData.competitorId = competitorData.data.id;
+          crudLog(`✅ Competitor created: ${testData.competitorId}`, 'success');
+          updateCRUDStatus('/api/competitors', 'competitors', 'ok');
+        } else {
+          throw new Error('Failed to create competitor');
+        }
+
+        // TEST 13: Update Competitor
+        crudLog('\n📝 TEST 13: Updating competitor...', 'info');
+        const updateCompetitorResponse = await fetch(`${API_BASE}/api/competitors`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: testData.competitorId,
+            name: 'Test Competitor - Updated'
+          })
+        });
+        if (updateCompetitorResponse.ok) {
+          crudLog('✅ Competitor updated successfully', 'success');
+          updateCRUDStatus('/api/competitors', 'competitors', 'ok');
+        } else {
+          throw new Error('Failed to update competitor');
+        }
+
+        // TEST 14: Delete Competitor
+        crudLog('\n📝 TEST 14: Deleting competitor...', 'info');
+        const deleteCompetitorResponse = await fetch(`${API_BASE}/api/competitors`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: testData.competitorId })
+        });
+        if (deleteCompetitorResponse.ok) {
+          crudLog('✅ Competitor deleted successfully', 'success');
+          updateCRUDStatus('/api/competitors', 'competitors', 'ok');
+        } else {
+          throw new Error('Failed to delete competitor');
+        }
+
+        // TEST 15: Delete Brand (Cleanup)
+        crudLog('\n📝 TEST 15: Deleting test brand (cleanup)...', 'info');
+        const deleteBrandResponse = await fetch(`${API_BASE}/api/brands?id=${testData.brandId}`, {
+          method: 'DELETE'
+        });
+        if (deleteBrandResponse.ok) {
+          crudLog('✅ Brand deleted successfully', 'success');
+          updateCRUDStatus('/api/brands', 'brands', 'ok');
+        } else {
+          throw new Error('Failed to delete brand');
+        }
+
+        crudLog('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+        crudLog('🎉 All CRUD tests passed successfully!', 'success');
+        crudLog(`📊 Total tests: 15 | ✅ Passed: 15 | ❌ Failed: 0`, 'success');
+
+      } catch (error) {
+        crudLog(`\n❌ Test failed: ${error.message}`, 'error');
+        crudLog('Test data at failure: ' + JSON.stringify(testData, null, 2), 'warn');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔬 Run CRUD Tests';
+      }
     }
 
     // Initialize
