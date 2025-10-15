@@ -3,7 +3,6 @@ import axios from 'axios'
 // API Configuration
 // Use relative URLs to leverage Vite proxy in development
 // In production (Vercel), use relative URLs to call the API functions
-const isProduction = import.meta.env.PROD;
 export const API_BASE_URL = ''
 export const CLAUDE_API_KEY = import.meta.env.VITE_CLAUDE_API_KEY || ''
 export const CLAUDE_MODEL = import.meta.env.VITE_CLAUDE_MODEL || 'claude-3-opus-20240229'

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Save, Plus, X } from 'lucide-react'
+import { ArrowLeft, Save } from 'lucide-react'
 import { useBrand } from '@/contexts/BrandContext'
 import axios from 'axios'
 import './CampaignForm.css'

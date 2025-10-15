@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Users, Edit2, Trash2 } from 'lucide-react'
 import type { TargetAudience } from '@/types'
 import axios from 'axios'
 import './TargetAudienceCard.css'
@@ -18,7 +17,6 @@ const TargetAudienceCard = ({ audience, onDelete }: Props) => {
   const interests = Array.isArray(audience.interests) ? audience.interests : []
   const painPoints = Array.isArray(audience.pain_points) ? audience.pain_points : []
   const goals = Array.isArray(audience.goals) ? audience.goals : []
-  const channels = Array.isArray(audience.channels) ? audience.channels : []
 
   const handleEdit = () => {
     navigate(`/audiences/${slug}/${shortId}/edit/${audience.id}`)

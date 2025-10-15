@@ -9,8 +9,7 @@ import type { BrandExtractResponse } from '@/types';
 import {
   createBrand,
   saveBrandAssets,
-  createBrandProfile,
-  saveBrandImages
+  createBrandProfile
 } from '@/services/api/brandService';
 import { useBrand } from '@/contexts/BrandContext';
 import { generateBrandUrl } from '@/utils/brandIdentifiers';

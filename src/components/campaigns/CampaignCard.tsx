@@ -1,4 +1,4 @@
-import { Target, Calendar, Package } from 'lucide-react'
+import { Target, Calendar } from 'lucide-react'
 import './CampaignCard.css'
 
 interface Campaign {

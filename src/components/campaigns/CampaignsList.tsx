@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { useBrand } from '@/contexts/BrandContext'
 import CampaignCard from './CampaignCard'
-import type { Campaign } from '@/types'
 import axios from 'axios'
 import './CampaignsList.css'
 
@@ -11,7 +10,7 @@ const CampaignsList = () => {
   const navigate = useNavigate()
   const { currentBrand } = useBrand()
   const { slug, shortId } = useParams()
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [campaigns, setCampaigns] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
