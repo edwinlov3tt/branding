@@ -1742,7 +1742,7 @@ app.post('/api/products-services', async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO products_services (brand_id, name, category, description, price, cturl, features, image_url, image_urls, default_image_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10)
        RETURNING *`,
       [brand_id, name, category, description, price, cturl, JSON.stringify(features || []), image_url, imageUrlsArray, defaultImage]
     );
@@ -2404,7 +2404,7 @@ app.post('/api/campaigns', async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO campaigns (brand_id, name, objective, product_service_id, marketing_objectives, other_objective, target_audience_ids, start_date, end_date, channels, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb, $8, $9, $10::jsonb, $11)
        RETURNING *`,
       [brand_id, name, objective, product_service_id, JSON.stringify(marketing_objectives || []), other_objective, JSON.stringify(target_audience_ids || []), start_date, end_date, JSON.stringify(channels || []), status || 'draft']
     );
