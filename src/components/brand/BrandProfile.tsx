@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react'
 import { Save, Undo2, Download, AlertCircle, WifiOff } from 'lucide-react'
-import BrandAssetExtractor from './BrandAssetExtractor'
 import ColorSwatch from './ColorSwatch'
 import TypographyPreview, { HeadingPreview } from './TypographyPreview'
 import LogoPreview, { LogoGrid } from './LogoPreview'
 import ConfidenceBar from './ConfidenceBar'
 import ScreenshotPreview from './ScreenshotPreview'
 import ImageAssets from './ImageAssets'
+import BrandInfo from './tabs/BrandInfo'
+import VoiceTone from './tabs/VoiceTone'
+import AudienceInfo from './tabs/AudienceInfo'
+import WritingGuide from './tabs/WritingGuide'
 import type {
   BrandExtractResponse,
   BrandData,
-  EditedBrandData
+  EditedBrandData,
+  BrandProfile as BrandProfileType
 } from '@/types'
-import { extractBrandData, saveEditedBrandData, loadEditedBrandData, checkExternalApiHealth, getBrandAssets } from '@/services/api/brandService'
+import { saveEditedBrandData, loadEditedBrandData, checkExternalApiHealth, getBrandAssets, getBrandProfile } from '@/services/api/brandService'
 import { useBrand } from '@/contexts/BrandContext'
 import { loadGoogleFonts } from '@/utils/fontUtils'
 import './BrandProfile.css'
@@ -21,9 +25,13 @@ import './ColorSwatch.css'
 import './TypographyPreview.css'
 import './LogoPreview.css'
 
+type TabType = 'overview' | 'images' | 'profile' | 'voice' | 'audience' | 'writing'
+
 const BrandProfile = () => {
   const { currentBrand } = useBrand()
+  const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [brandData, setBrandData] = useState<BrandData | null>(null)
+  const [brandProfile, setBrandProfile] = useState<BrandProfileType | null>(null)
   const [extractResponse, setExtractResponse] = useState<BrandExtractResponse | null>(null)
   const [editedData, setEditedData] = useState<EditedBrandData>({
     colors: {},
@@ -31,7 +39,7 @@ const BrandProfile = () => {
     logo: { alternatesKept: [] },
     removed: { colors: [], fonts: [], logos: [] }
   })
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false)
   const [error, setError] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking')
@@ -46,9 +54,10 @@ const BrandProfile = () => {
       }
     })
 
-    // Load brand assets if current brand is set
+    // Load brand assets and profile if current brand is set
     if (currentBrand?.id) {
       loadBrandAssets()
+      loadBrandProfileData()
     }
   }, [currentBrand?.id])
 
@@ -63,6 +72,22 @@ const BrandProfile = () => {
       }
     } catch (error) {
       console.error('Failed to load brand assets:', error)
+    }
+  }
+
+  const loadBrandProfileData = async () => {
+    if (!currentBrand?.id) return
+
+    setIsLoadingProfile(true)
+    try {
+      const response = await getBrandProfile(currentBrand.id)
+      if (response.success && response.data) {
+        setBrandProfile(response.data)
+      }
+    } catch (error) {
+      console.error('Failed to load brand profile:', error)
+    } finally {
+      setIsLoadingProfile(false)
     }
   }
 
@@ -85,23 +110,6 @@ const BrandProfile = () => {
       loadGoogleFonts(brandData.typography.fontLinks).catch(console.error)
     }
   }, [brandData])
-
-  const handleBrandExtracted = async (url: string) => {
-    setIsLoading(true)
-    setError('')
-
-    try {
-      const response = await extractBrandData(url, true)
-      setExtractResponse(response)
-      setBrandData(response.brand)
-    } catch (err: any) {
-      setError(err.message || 'Failed to extract brand data. Please try again.')
-      console.error('Brand extraction error:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
 
   // Color management
   const handleColorRemove = (hex: string) => {
@@ -245,30 +253,59 @@ const BrandProfile = () => {
         </div>
       )}
 
-      {/* Extraction Section */}
-      <div className="section">
-        <div className="section-header">
-          <h2 className="section-title">Extract Brand Assets</h2>
-          <div className="header-indicators">
-            {hasUnsavedChanges && (
-              <div className="unsaved-indicator">
-                <span>Unsaved changes</span>
-              </div>
-            )}
-            {apiStatus === 'disconnected' && (
-              <div className={`api-indicator ${apiStatus}`}>
-                <WifiOff size={16} />
-              </div>
-            )}
-          </div>
+      {/* Tabs Navigation - Chips Style */}
+      <div className="brand-profile-tabs">
+        <div className="tabs-group">
+          <button
+            className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+          </button>
+          <button
+            className={`tab ${activeTab === 'images' ? 'active' : ''}`}
+            onClick={() => setActiveTab('images')}
+          >
+            Images & Assets
+          </button>
+          <button
+            className={`tab ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => setActiveTab('profile')}
+          >
+            Brand Profile
+          </button>
+          <button
+            className={`tab ${activeTab === 'voice' ? 'active' : ''}`}
+            onClick={() => setActiveTab('voice')}
+          >
+            Voice & Tone
+          </button>
+          <button
+            className={`tab ${activeTab === 'audience' ? 'active' : ''}`}
+            onClick={() => setActiveTab('audience')}
+          >
+            Audience
+          </button>
+          <button
+            className={`tab ${activeTab === 'writing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('writing')}
+          >
+            Writing Guide
+          </button>
         </div>
-        <div className="section-content">
-          <BrandAssetExtractor
-            onBrandExtracted={handleBrandExtracted}
-          />
-        </div>
+        {hasUnsavedChanges && (
+          <button className="save-button" onClick={handleSaveChanges}>
+            <Save size={16} />
+            Save
+          </button>
+        )}
       </div>
 
+      {/* Tab Content */}
+      <div className="tab-content">
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <>
       {/* Summary Section */}
       {extractResponse?.summary && extractResponse.summary.primaryColor && (
         <div className="section">
@@ -342,15 +379,10 @@ const BrandProfile = () => {
 
       {/* Screenshot Section */}
       {brandData?.screenshot && (brandData.screenshot.url || brandData.screenshot.data) && (
-        <div className="section">
-          <h2 className="section-title">Website Screenshot</h2>
-          <div className="section-content">
-            <ScreenshotPreview
-              screenshot={brandData.screenshot}
-              url={brandData.url}
-            />
-          </div>
-        </div>
+        <ScreenshotPreview
+          screenshot={brandData.screenshot}
+          url={brandData.url}
+        />
       )}
 
       {/* Logos Section */}
@@ -494,32 +526,52 @@ const BrandProfile = () => {
           )}
         </div>
       )}
+          </>
+        )}
 
-      {/* Images & Assets Section */}
-      {brandData && (
-        <div className="section">
-          <h2 className="section-title">Images & Assets</h2>
-          <div className="section-content">
-            <ImageAssets url={brandData.url} />
-          </div>
-        </div>
-      )}
+        {/* Images & Assets Tab */}
+        {activeTab === 'images' && (
+          <>
+            {brandData ? (
+              <div className="section">
+                <div className="section-content">
+                  <ImageAssets url={brandData.url} />
+                </div>
+              </div>
+            ) : (
+              <div className="empty-state">
+                <p>No brand data available. Please extract brand assets first from the Overview tab.</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Brand Profile Tab */}
+        {activeTab === 'profile' && (
+          <BrandInfo profile={brandProfile} isLoading={isLoadingProfile} />
+        )}
+
+        {/* Voice & Tone Tab */}
+        {activeTab === 'voice' && (
+          <VoiceTone profile={brandProfile} isLoading={isLoadingProfile} />
+        )}
+
+        {/* Audience Tab */}
+        {activeTab === 'audience' && (
+          <AudienceInfo profile={brandProfile} isLoading={isLoadingProfile} />
+        )}
+
+        {/* Writing Guide Tab */}
+        {activeTab === 'writing' && (
+          <WritingGuide profile={brandProfile} isLoading={isLoadingProfile} />
+        )}
+      </div>
 
       {/* Error display */}
       {error && (
         <div className="error-message">
           <AlertCircle size={18} />
           <span>{error}</span>
-        </div>
-      )}
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className="loading-overlay">
-          <div className="loading-container">
-            <div className="loading"></div>
-            <p className="loading-text">Extracting brand data...</p>
-          </div>
         </div>
       )}
     </div>

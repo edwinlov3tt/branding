@@ -22,17 +22,41 @@ const ScreenshotPreview = ({ screenshot, url }: ScreenshotPreviewProps) => {
 
     // If screenshot has a URL, use it directly
     if (screenshot.url) {
+      console.log('Using screenshot URL:', screenshot.url.substring(0, 100) + '...');
       return screenshot.url;
     }
 
     // Fallback to base64 data if available
     if (screenshot.data) {
-      // If data already has data URL prefix, use as is
-      if (screenshot.data.startsWith('data:image/')) {
-        return screenshot.data;
+      try {
+        // If data already has data URL prefix, use as is
+        if (screenshot.data.startsWith('data:image/')) {
+          // Validate that it's a proper data URL
+          const dataUrl = screenshot.data;
+          if (dataUrl.includes(',')) {
+            console.log('Using existing data URL (length:', dataUrl.length, ')');
+            return dataUrl;
+          } else {
+            console.error('Invalid data URL format - missing comma separator');
+            return '';
+          }
+        }
+
+        // Otherwise, add the data URL prefix
+        // Make sure the data is valid base64
+        const base64Data = screenshot.data.trim();
+        if (base64Data.length === 0) {
+          console.error('Empty base64 data');
+          return '';
+        }
+
+        const dataUrl = `data:image/png;base64,${base64Data}`;
+        console.log('Created data URL (length:', dataUrl.length, ')');
+        return dataUrl;
+      } catch (error) {
+        console.error('Error processing screenshot data:', error);
+        return '';
       }
-      // Otherwise, add the data URL prefix
-      return `data:image/png;base64,${screenshot.data}`;
     }
 
     console.warn('No valid screenshot URL or data found');
@@ -100,7 +124,7 @@ const ScreenshotPreview = ({ screenshot, url }: ScreenshotPreviewProps) => {
   return (
     <div className={`screenshot-preview ${isExpanded ? 'expanded' : ''}`}>
       <div className="screenshot-header">
-        <h4 className="screenshot-title">Website Screenshot</h4>
+        <h4 className="section-title">Website Screenshot</h4>
         <div className="screenshot-controls">
           <button
             className="control-btn"

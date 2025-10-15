@@ -10,6 +10,36 @@
   padding: 32px;
 }
 
+.date-range-selector {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.date-range-option {
+  padding: 12px 20px;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.date-range-option:hover {
+  background: var(--bg-primary);
+  border-color: var(--brand-red);
+  color: var(--text-primary);
+}
+
+.date-range-option.active {
+  background: var(--brand-red);
+  border-color: var(--brand-red);
+  color: white;
+}
+
 @media (max-width: 768px) {
   .competitor-form-page {
     padding: 16px;
@@ -17,5 +47,9 @@
 
   .competitor-form {
     padding: 20px;
+  }
+
+  .date-range-selector {
+    grid-template-columns: 1fr;
   }
 }

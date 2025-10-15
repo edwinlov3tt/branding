@@ -1,4 +1,6 @@
 const { Pool } = require('pg');
+const slugify = require('slugify');
+const { nanoid } = require('nanoid');
 
 // Configure database connection
 const pool = new Pool({
@@ -9,6 +11,19 @@ const pool = new Pool({
   password: process.env.DATABASE_PASSWORD,
   ssl: false, // Disable SSL for database connection
 });
+
+// Utility functions for slug and short ID generation
+function generateSlug(name) {
+  return slugify(name, {
+    lower: true,
+    strict: true,
+    trim: true
+  });
+}
+
+function generateShortId() {
+  return nanoid(5);
+}
 
 // Helper function to set CORS headers
 function setCorsHeaders(res) {
@@ -51,7 +66,7 @@ module.exports = async (req, res) => {
 
     // POST - Create new brand
     else if (req.method === 'POST') {
-      const { name, website, logo_url, primary_color } = req.body;
+      const { name, website, logo_url, primary_color, industry, favicon_url } = req.body;
 
       if (!name) {
         res.status(400).json({
@@ -61,11 +76,37 @@ module.exports = async (req, res) => {
         return;
       }
 
+      // Generate slug and short ID
+      let slug = generateSlug(name);
+      let shortId = generateShortId();
+
+      // Check for slug uniqueness and regenerate if needed
+      const existingSlugs = await pool.query('SELECT slug FROM brands WHERE slug = $1', [slug]);
+      if (existingSlugs.rows.length > 0) {
+        let counter = 1;
+        let uniqueSlug = slug;
+        while (true) {
+          uniqueSlug = `${slug}-${counter}`;
+          const check = await pool.query('SELECT slug FROM brands WHERE slug = $1', [uniqueSlug]);
+          if (check.rows.length === 0) {
+            slug = uniqueSlug;
+            break;
+          }
+          counter++;
+        }
+      }
+
+      // Check for short ID uniqueness (very unlikely collision but just in case)
+      const existingIds = await pool.query('SELECT short_id FROM brands WHERE short_id = $1', [shortId]);
+      if (existingIds.rows.length > 0) {
+        shortId = generateShortId(); // Generate a new one
+      }
+
       const result = await pool.query(
-        `INSERT INTO brands (name, website, logo_url, primary_color)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO brands (name, website, logo_url, primary_color, slug, short_id, industry, favicon_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [name, website, logo_url, primary_color]
+        [name, website, logo_url, primary_color, slug, shortId, industry, favicon_url]
       );
 
       res.status(201).json({

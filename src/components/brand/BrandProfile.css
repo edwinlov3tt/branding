@@ -2,6 +2,76 @@
   padding: 0;
   max-width: 1200px;
   margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* Tab Navigation - Chips Style */
+.brand-profile-tabs {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tabs-group {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.brand-profile-tabs .tab {
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.brand-profile-tabs .tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-color: var(--text-tertiary);
+}
+
+.brand-profile-tabs .tab.active {
+  color: var(--text-primary);
+  background: var(--brand-red);
+  border-color: var(--brand-red);
+}
+
+.save-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--brand-red);
+  border: 1px solid var(--brand-red);
+  border-radius: 20px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.save-button:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* Tab Content */
+.tab-content {
+  padding: 0 24px 24px 24px;
 }
 
 .section {
@@ -17,7 +87,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 12px 16px;
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
@@ -25,10 +95,11 @@
 }
 
 .section-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  margin-bottom: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -36,7 +107,7 @@
 
 /* Standalone section title (without header) */
 .section > h2.section-title:first-child {
-  padding: 16px 24px;
+  padding: 12px 16px 12px 16px;
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border);
   border-radius: var(--radius) var(--radius) 0 0;
@@ -397,6 +468,16 @@
 .error-message svg {
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+.empty-state {
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 24px;
 }
 
 .error-help {

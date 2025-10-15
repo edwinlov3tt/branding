@@ -1,55 +1,63 @@
 .audience-card {
-  padding: 24px;
+  padding: 28px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.audience-card:hover {
+  border-color: rgba(148, 163, 184, 0.3);
 }
 
 .audience-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
+  margin-bottom: 8px;
 }
 
-.audience-avatar {
-  width: 48px;
-  height: 48px;
-  background: var(--bg-tertiary);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
+.audience-header-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .audience-name {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  line-height: 1.3;
 }
 
-.audience-demographics {
-  font-size: 14px;
+.audience-subtitle {
+  font-size: 15px;
   color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
 }
 
 .audience-description {
   color: var(--text-secondary);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .audience-section {
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
+  margin-top: 16px;
 }
 
 .audience-section-title {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  line-height: 1.3;
 }
 
 .audience-list {
@@ -60,9 +68,9 @@
 
 .audience-list li {
   color: var(--text-secondary);
-  font-size: 13px;
-  padding: 4px 0;
-  padding-left: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 4px 0 4px 20px;
   position: relative;
 }
 
@@ -70,25 +78,54 @@
   content: '•';
   position: absolute;
   left: 0;
-  color: var(--brand-red);
-}
-
-.audience-budget {
-  color: var(--success);
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.audience-channels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.channel-chip {
-  padding: 4px 10px;
-  background: var(--bg-tertiary);
-  border-radius: 12px;
-  font-size: 12px;
   color: var(--text-secondary);
+  font-size: 16px;
+}
+
+.goal-list li:before {
+  color: #22c55e;
+}
+
+.audience-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+
+.action-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.edit-button {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.edit-button:hover {
+  background: var(--bg-tertiary);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.delete-button {
+  background: #dc2626;
+  color: white;
+  border: 1px solid #dc2626;
+}
+
+.delete-button:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.delete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

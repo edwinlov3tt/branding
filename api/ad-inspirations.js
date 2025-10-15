@@ -24,16 +24,24 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // GET - Fetch curated ads
+    // GET - Fetch ads (curated or brand-specific)
     if (req.method === 'GET') {
-      const { platform, niche, limit = 50, search } = req.query;
+      const { brand_id, platform, niche, limit = 50, search } = req.query;
 
-      let query = `
-        SELECT * FROM ad_inspirations
-        WHERE is_curated = true
-      `;
+      let query = `SELECT * FROM ad_inspirations WHERE `;
       const params = [];
       let paramCount = 0;
+
+      // Determine which ads to fetch based on brand_id
+      if (brand_id) {
+        // Fetch ads saved by this specific brand
+        paramCount++;
+        query += `(brand_id = $${paramCount} OR saved_by_brand_id = $${paramCount})`;
+        params.push(brand_id);
+      } else {
+        // Fetch curated ads (platform-wide)
+        query += `is_curated = true`;
+      }
 
       if (platform && platform !== 'all') {
         paramCount++;

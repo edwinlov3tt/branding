@@ -61,7 +61,11 @@ const TargetAudienceList = () => {
         ) : audiences.length > 0 ? (
           <div className="audiences-grid">
             {audiences.map(audience => (
-              <TargetAudienceCard key={audience.id} audience={audience} />
+              <TargetAudienceCard
+                key={audience.id}
+                audience={audience}
+                onDelete={loadAudiences}
+              />
             ))}
           </div>
         ) : (

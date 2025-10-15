@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ExternalLink, AlertCircle } from 'lucide-react';
-import { discoverBrandPages } from '@/services/api/brandService';
-import type { DiscoveredPage, PageImage } from '@/types';
+import { discoverBrandPages, getBrandImages, saveBrandImages } from '@/services/api/brandService';
+import { useBrand } from '@/contexts/BrandContext';
+import type { DiscoveredPage, PageImage, BrandImagePage } from '@/types';
 import ImageCard from './ImageCard';
 import './ImageAssets.css';
 
@@ -10,20 +11,62 @@ interface ImageAssetsProps {
 }
 
 const ImageAssets = ({ url }: ImageAssetsProps) => {
+  const { currentBrand } = useBrand();
   const [pages, setPages] = useState<DiscoveredPage[]>([]);
   const [removedImages, setRemovedImages] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
-    // Only fetch if we haven't fetched for this URL yet
-    if (url && !hasFetched) {
-      fetchBrandImages();
+    // Load images from database first, then fetch if needed
+    if (url && currentBrand?.id) {
+      loadBrandImages();
     }
-  }, [url, hasFetched]);
+  }, [url, currentBrand?.id]);
+
+  const loadBrandImages = async () => {
+    if (!currentBrand?.id) return;
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Try to load from database first
+      const response = await getBrandImages(currentBrand.id);
+
+      if (response.success && response.data && response.data.length > 0) {
+        // Convert BrandImagePage[] to DiscoveredPage[] format
+        const discoveredPages: DiscoveredPage[] = response.data.map((page: BrandImagePage) => ({
+          url: page.page_url,
+          title: page.page_title || '',
+          category: page.page_category || 'other',
+          relevanceScore: page.relevance_score,
+          reason: '',
+          headings: [],
+          wordCount: 0,
+          images: page.images || [],
+          imageCount: page.images_count,
+          scrapedAt: page.last_fetched_at
+        }));
+
+        setPages(discoveredPages);
+        setIsLoading(false);
+        console.log(`[Cache Hit] Loaded ${discoveredPages.length} pages from database`);
+      } else {
+        // No cached data - fetch from API
+        console.log('[Cache Miss] No cached images found, fetching from API...');
+        await fetchBrandImages();
+      }
+    } catch (err: any) {
+      console.error('Error loading brand images:', err);
+      // Fallback to API if database fails
+      await fetchBrandImages();
+    }
+  };
 
   const fetchBrandImages = async () => {
+    if (!currentBrand?.id) return;
+
     setIsLoading(true);
     setError('');
 
@@ -38,11 +81,21 @@ const ImageAssets = ({ url }: ImageAssetsProps) => {
       // Filter pages that have images
       const pagesWithImages = response.pages.filter(page => page.images && page.images.length > 0);
       setPages(pagesWithImages);
-      setHasFetched(true); // Mark as fetched
+
+      // Save to database for future loads
+      const pagesToSave = pagesWithImages.map(page => ({
+        page_url: page.url,
+        page_title: page.title,
+        page_category: page.category,
+        relevance_score: page.relevanceScore,
+        images: page.images || []
+      }));
+
+      await saveBrandImages(currentBrand.id, pagesToSave);
+      console.log(`[Cache Update] Saved ${pagesToSave.length} pages to database`);
     } catch (err: any) {
       setError(err.message || 'Failed to discover brand images');
       console.error('Error discovering brand pages:', err);
-      setHasFetched(true); // Mark as fetched even on error to prevent retrying
     } finally {
       setIsLoading(false);
     }

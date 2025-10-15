@@ -3,12 +3,19 @@ import Layout from './components/layout/Layout'
 import BrandProfile from './components/brand/BrandProfile'
 import TargetAudienceList from './components/audiences/TargetAudienceList'
 import TargetAudienceForm from './components/audiences/TargetAudienceForm'
+import TargetAudienceEdit from './components/audiences/TargetAudienceEdit'
+import TargetAudienceSelector from './components/audiences/TargetAudienceSelector'
+import TargetAudienceAutoFill from './components/audiences/TargetAudienceAutoFill'
 import CompetitorAnalysis from './components/competitors/CompetitorAnalysis'
 import CompetitorForm from './components/competitors/CompetitorForm'
+import CompetitorAnalysisDetail from './components/competitors/CompetitorAnalysisDetail'
 import InspirationLibrary from './components/inspiration/InspirationLibrary'
 import AdLibraryBrowser from './components/inspiration/AdLibraryBrowser'
 import ProductsServices from './components/products/ProductsServices'
 import ProductServiceForm from './components/products/ProductServiceForm'
+import ProductServiceSelector from './components/products/ProductServiceSelector'
+import ProductServiceAutoFill from './components/products/ProductServiceAutoFill'
+import ProductServiceDetail from './components/products/ProductServiceDetail'
 import CampaignsList from './components/campaigns/CampaignsList'
 import CampaignForm from './components/campaigns/CampaignForm'
 import GenerationsList from './components/generations/GenerationsList'
@@ -39,12 +46,19 @@ function App() {
             {/* Brand-scoped routes with slug and short ID */}
             <Route path="brand/:slug/:shortId" element={<BrandProfile />} />
             <Route path="audiences/:slug/:shortId" element={<TargetAudienceList />} />
-            <Route path="audiences/:slug/:shortId/new" element={<TargetAudienceForm />} />
+            <Route path="audiences/:slug/:shortId/new" element={<TargetAudienceSelector />} />
+            <Route path="audiences/:slug/:shortId/new/manual" element={<TargetAudienceForm />} />
+            <Route path="audiences/:slug/:shortId/new/ai" element={<TargetAudienceAutoFill />} />
+            <Route path="audiences/:slug/:shortId/edit/:audienceId" element={<TargetAudienceEdit />} />
             <Route path="competitors/:slug/:shortId" element={<CompetitorAnalysis />} />
             <Route path="competitors/:slug/:shortId/new" element={<CompetitorForm />} />
+            <Route path="competitors/:slug/:shortId/:analysisId" element={<CompetitorAnalysisDetail />} />
             <Route path="inspiration/:slug/:shortId" element={<InspirationLibrary />} />
             <Route path="products/:slug/:shortId" element={<ProductsServices />} />
-            <Route path="products/:slug/:shortId/new" element={<ProductServiceForm />} />
+            <Route path="products/:slug/:shortId/new" element={<ProductServiceSelector />} />
+            <Route path="products/:slug/:shortId/new/manual" element={<ProductServiceForm />} />
+            <Route path="products/:slug/:shortId/new/ai" element={<ProductServiceAutoFill />} />
+            <Route path="products/:slug/:shortId/:productId" element={<ProductServiceDetail />} />
             <Route path="campaigns/:slug/:shortId" element={<CampaignsList />} />
             <Route path="campaigns/:slug/:shortId/new" element={<CampaignForm />} />
             <Route path="generations/:slug/:shortId" element={<GenerationsList />} />

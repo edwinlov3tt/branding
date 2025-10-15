@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Package, Plus } from 'lucide-react'
+import { Package, Plus, ExternalLink } from 'lucide-react'
 import { useBrand } from '@/contexts/BrandContext'
 import axios from 'axios'
 import './ProductsServices.css'
+
+interface Offer {
+  id?: string
+  offer_text: string
+  expiration_date?: string
+}
 
 interface ProductService {
   id: string
@@ -12,8 +18,12 @@ interface ProductService {
   category: string
   description: string
   price: string
+  cturl?: string
   features: string[]
+  offers?: Offer[]
   image_url: string
+  image_urls: string[]
+  default_image_url: string
   created_at: string
   updated_at: string
 }
@@ -62,29 +72,69 @@ const ProductsServices = () => {
 
         {products.length > 0 ? (
           <div className="products-grid">
-            {products.map(product => (
-              <div key={product.id} className="product-card card">
-                <div className="product-image">
-                  <Package size={48} />
+            {products.map(product => {
+              const displayImage = product.default_image_url || product.image_url
+
+              // Calculate active offers
+              const now = new Date()
+              const activeOffers = product.offers?.filter(offer =>
+                !offer.expiration_date || new Date(offer.expiration_date) >= now
+              ) || []
+
+              // Check if all offers are expired
+              const hasExpiredOffers = product.offers && product.offers.length > 0 &&
+                product.offers.every(offer => offer.expiration_date && new Date(offer.expiration_date) < now)
+
+              return (
+                <div key={product.id} className={`product-card card ${hasExpiredOffers ? 'card-expired' : ''}`}>
+                  <div className="product-image">
+                    {displayImage ? (
+                      <img src={displayImage} alt={product.name} />
+                    ) : (
+                      <Package size={48} />
+                    )}
+                    {activeOffers.length > 0 && (
+                      <div className="offers-chip">
+                        Offers: {activeOffers.length}
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="product-name">{product.name}</h3>
+                  <p className="product-category">{product.category}</p>
+                  <p className="product-description">{product.description}</p>
+                  <div className="product-meta">
+                    {product.price && (
+                      <span className="product-price">{product.price}</span>
+                    )}
+                  </div>
+                  <div className="product-features">
+                    {product.features.slice(0, 3).map((feature, index) => (
+                      <span key={index} className="feature-chip">{feature}</span>
+                    ))}
+                  </div>
+                  <div className="product-actions">
+                    <button
+                      className="button button-primary"
+                      onClick={() => navigate(`/products/${slug}/${shortId}/${product.id}`)}
+                    >
+                      View Details
+                    </button>
+                    {product.cturl && (
+                      <a
+                        href={product.cturl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="button button-secondary"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink size={16} />
+                        Visit CTURL
+                      </a>
+                    )}
+                  </div>
                 </div>
-                <h3 className="product-name">{product.name}</h3>
-                <p className="product-category">{product.category}</p>
-                <p className="product-description">{product.description}</p>
-                <div className="product-meta">
-                  {product.price && (
-                    <span className="product-price">{product.price}</span>
-                  )}
-                </div>
-                <div className="product-features">
-                  {product.features.slice(0, 3).map((feature, index) => (
-                    <span key={index} className="feature-chip">{feature}</span>
-                  ))}
-                </div>
-                <button className="button button-primary product-action">
-                  View Details
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div className="empty-state">

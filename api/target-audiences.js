@@ -26,26 +26,32 @@ module.exports = async (req, res) => {
   try {
     if (req.method === 'GET') {
       const { brand_id, id } = req.query;
+      console.log('📋 Target Audiences GET - Query params:', { brand_id, id });
 
       if (id) {
+        console.log(`🔍 Fetching single audience with id: ${id}`);
         const result = await pool.query(
           'SELECT * FROM target_audiences WHERE id = $1',
           [id]
         );
+        console.log(`✅ Found ${result.rows.length} audience(s)`);
         res.status(200).json({
           success: true,
           data: result.rows[0] || null
         });
       } else if (brand_id) {
+        console.log(`🔍 Fetching all audiences for brand: ${brand_id}`);
         const result = await pool.query(
           'SELECT * FROM target_audiences WHERE brand_id = $1 ORDER BY created_at DESC',
           [brand_id]
         );
+        console.log(`✅ Found ${result.rows.length} audience(s)`);
         res.status(200).json({
           success: true,
           data: result.rows
         });
       } else {
+        console.log('❌ Missing required parameter: brand_id or id');
         res.status(400).json({
           success: false,
           error: 'brand_id or id is required'
@@ -55,49 +61,40 @@ module.exports = async (req, res) => {
     else if (req.method === 'POST') {
       const {
         brand_id,
-        persona_name,
-        age_range,
-        gender,
-        location,
-        income_level,
-        occupation,
+        name,
+        description,
+        demographics,
         interests,
         pain_points,
         goals,
-        buying_behavior,
-        preferred_channels,
-        description
+        budget_range,
+        channels
       } = req.body;
 
-      if (!brand_id || !persona_name) {
+      if (!brand_id || !name) {
         res.status(400).json({
           success: false,
-          error: 'brand_id and persona_name are required'
+          error: 'brand_id and name are required'
         });
         return;
       }
 
       const result = await pool.query(
         `INSERT INTO target_audiences (
-          brand_id, persona_name, age_range, gender, location, income_level,
-          occupation, interests, pain_points, goals, buying_behavior,
-          preferred_channels, description
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          brand_id, name, description, demographics, interests,
+          pain_points, goals, budget_range, channels
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *`,
         [
           brand_id,
-          persona_name,
-          age_range,
-          gender,
-          location,
-          income_level,
-          occupation,
+          name,
+          description,
+          demographics,
           JSON.stringify(interests || []),
           JSON.stringify(pain_points || []),
           JSON.stringify(goals || []),
-          buying_behavior,
-          JSON.stringify(preferred_channels || []),
-          description
+          budget_range,
+          JSON.stringify(channels || [])
         ]
       );
 
@@ -109,18 +106,14 @@ module.exports = async (req, res) => {
     else if (req.method === 'PUT') {
       const {
         id,
-        persona_name,
-        age_range,
-        gender,
-        location,
-        income_level,
-        occupation,
+        name,
+        description,
+        demographics,
         interests,
         pain_points,
         goals,
-        buying_behavior,
-        preferred_channels,
-        description
+        budget_range,
+        channels
       } = req.body;
 
       if (!id) {
@@ -133,35 +126,27 @@ module.exports = async (req, res) => {
 
       const result = await pool.query(
         `UPDATE target_audiences
-         SET persona_name = COALESCE($2, persona_name),
-             age_range = COALESCE($3, age_range),
-             gender = COALESCE($4, gender),
-             location = COALESCE($5, location),
-             income_level = COALESCE($6, income_level),
-             occupation = COALESCE($7, occupation),
-             interests = COALESCE($8, interests),
-             pain_points = COALESCE($9, pain_points),
-             goals = COALESCE($10, goals),
-             buying_behavior = COALESCE($11, buying_behavior),
-             preferred_channels = COALESCE($12, preferred_channels),
-             description = COALESCE($13, description),
+         SET name = COALESCE($2, name),
+             description = COALESCE($3, description),
+             demographics = COALESCE($4, demographics),
+             interests = COALESCE($5, interests),
+             pain_points = COALESCE($6, pain_points),
+             goals = COALESCE($7, goals),
+             budget_range = COALESCE($8, budget_range),
+             channels = COALESCE($9, channels),
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1
          RETURNING *`,
         [
           id,
-          persona_name,
-          age_range,
-          gender,
-          location,
-          income_level,
-          occupation,
+          name,
+          description,
+          demographics,
           interests ? JSON.stringify(interests) : null,
           pain_points ? JSON.stringify(pain_points) : null,
           goals ? JSON.stringify(goals) : null,
-          buying_behavior,
-          preferred_channels ? JSON.stringify(preferred_channels) : null,
-          description
+          budget_range,
+          channels ? JSON.stringify(channels) : null
         ]
       );
 

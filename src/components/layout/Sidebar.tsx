@@ -6,8 +6,7 @@ import {
   Lightbulb,
   Package,
   Target,
-  Palette,
-  Settings
+  Palette
 } from 'lucide-react'
 import BrandProfile from './BrandProfile'
 import { useBrand } from '@/contexts/BrandContext'
@@ -29,12 +28,12 @@ const Sidebar = () => {
   const navItems = [
     { path: 'brand', label: 'Brand Profile', icon: Building2 },
     { path: 'products', label: 'Products & Services', icon: Package },
-    { path: 'competitors', label: 'Competitor Analysis', icon: Swords },
-    { path: 'inspiration', label: 'Inspiration Library', icon: Lightbulb },
     { path: 'audiences', label: 'Target Audiences', icon: Users },
     { path: 'campaigns', label: 'Campaigns', icon: Target },
     { path: 'generations', label: 'Generated Creatives', icon: Palette },
-    { path: 'settings', label: 'Settings', icon: Settings },
+    { path: 'divider', label: '', icon: null }, // Divider
+    { path: 'competitors', label: 'Competitor Analysis', icon: Swords },
+    { path: 'inspiration', label: 'Inspiration Library', icon: Lightbulb },
   ]
 
   return (
@@ -42,16 +41,21 @@ const Sidebar = () => {
       <div className="logo">Branding AI</div>
       <nav className="nav">
         {currentBrand ? (
-          navItems.map((item, index) => (
-            <NavLink
-              key={item.path}
-              to={getBrandPath(item.path)}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${index === navItems.length - 1 ? 'last-nav-item' : ''}`}
-            >
-              <item.icon className="nav-icon" size={20} />
-              <span>{item.label}</span>
-            </NavLink>
-          ))
+          navItems.map((item, index) => {
+            if (item.path === 'divider') {
+              return <div key={`divider-${index}`} className="nav-divider" />
+            }
+            return (
+              <NavLink
+                key={item.path}
+                to={getBrandPath(item.path)}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                {item.icon && <item.icon className="nav-icon" size={20} />}
+                <span>{item.label}</span>
+              </NavLink>
+            )
+          })
         ) : (
           <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '14px' }}>
             Select or create a brand to access features

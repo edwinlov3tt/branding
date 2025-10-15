@@ -13,22 +13,12 @@ const TargetAudienceForm = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    demographics: {
-      age_range: '',
-      gender: '',
-      location: '',
-      income_level: '',
-      education: '',
-      occupation: ''
-    },
-    psychographics: {
-      interests: '',
-      values: '',
-      lifestyle: '',
-      pain_points: '',
-      goals: '',
-      buying_behavior: ''
-    }
+    demographics: '',
+    interests: '',
+    pain_points: '',
+    goals: '',
+    budget_range: '',
+    channels: ''
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -51,12 +41,22 @@ const TargetAudienceForm = () => {
     setError('')
 
     try {
+      // Convert comma-separated strings to arrays
+      const interests = formData.interests ? formData.interests.split(',').map(s => s.trim()).filter(Boolean) : []
+      const pain_points = formData.pain_points ? formData.pain_points.split(',').map(s => s.trim()).filter(Boolean) : []
+      const goals = formData.goals ? formData.goals.split(',').map(s => s.trim()).filter(Boolean) : []
+      const channels = formData.channels ? formData.channels.split(',').map(s => s.trim()).filter(Boolean) : []
+
       const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/target-audiences`, {
         brand_id: currentBrand.id,
         name: formData.name,
         description: formData.description,
         demographics: formData.demographics,
-        psychographics: formData.psychographics
+        interests,
+        pain_points,
+        goals,
+        budget_range: formData.budget_range,
+        channels
       })
 
       if (response.data.success) {
@@ -109,192 +109,75 @@ const TargetAudienceForm = () => {
             />
           </div>
 
-          <div className="section-divider">
-            <h3 className="section-subtitle">Demographics</h3>
+          <div className="form-group">
+            <label className="form-label">Demographics</label>
+            <textarea
+              className="form-textarea"
+              value={formData.demographics}
+              onChange={(e) => setFormData({ ...formData, demographics: e.target.value })}
+              placeholder="e.g., Age 25-40, Urban professionals, Bachelor's degree or higher, $50k-$100k income"
+              rows={3}
+            />
+            <p className="form-hint">Describe the demographic characteristics of this audience</p>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Age Range</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.demographics.age_range}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  demographics: { ...formData.demographics, age_range: e.target.value }
-                })}
-                placeholder="e.g., 25-40"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Gender</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.demographics.gender}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  demographics: { ...formData.demographics, gender: e.target.value }
-                })}
-                placeholder="e.g., All, Male, Female, Non-binary"
-              />
-            </div>
+          <div className="form-group">
+            <label className="form-label">Interests</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.interests}
+              onChange={(e) => setFormData({ ...formData, interests: e.target.value })}
+              placeholder="e.g., Technology, Innovation, Design, Sustainability"
+            />
+            <p className="form-hint">Comma-separated list of interests</p>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Location</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.demographics.location}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  demographics: { ...formData.demographics, location: e.target.value }
-                })}
-                placeholder="e.g., Urban areas, US/Canada"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Income Level</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.demographics.income_level}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  demographics: { ...formData.demographics, income_level: e.target.value }
-                })}
-                placeholder="e.g., $50k-$100k"
-              />
-            </div>
+          <div className="form-group">
+            <label className="form-label">Pain Points</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.pain_points}
+              onChange={(e) => setFormData({ ...formData, pain_points: e.target.value })}
+              placeholder="e.g., Time constraints, Budget limitations, Complex solutions"
+            />
+            <p className="form-hint">Comma-separated list of pain points</p>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Education</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.demographics.education}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  demographics: { ...formData.demographics, education: e.target.value }
-                })}
-                placeholder="e.g., Bachelor's degree or higher"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Occupation</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.demographics.occupation}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  demographics: { ...formData.demographics, occupation: e.target.value }
-                })}
-                placeholder="e.g., Marketing professionals"
-              />
-            </div>
+          <div className="form-group">
+            <label className="form-label">Goals</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.goals}
+              onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
+              placeholder="e.g., Career advancement, Better work-life balance, Save time"
+            />
+            <p className="form-hint">Comma-separated list of goals</p>
           </div>
 
-          <div className="section-divider">
-            <h3 className="section-subtitle">Psychographics</h3>
+          <div className="form-group">
+            <label className="form-label">Budget Range</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.budget_range}
+              onChange={(e) => setFormData({ ...formData, budget_range: e.target.value })}
+              placeholder="e.g., $1,000 - $5,000"
+            />
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Interests</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.psychographics.interests}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  psychographics: { ...formData.psychographics, interests: e.target.value }
-                })}
-                placeholder="e.g., Technology, Innovation, Design"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Values</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.psychographics.values}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  psychographics: { ...formData.psychographics, values: e.target.value }
-                })}
-                placeholder="e.g., Sustainability, Quality, Innovation"
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Lifestyle</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.psychographics.lifestyle}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  psychographics: { ...formData.psychographics, lifestyle: e.target.value }
-                })}
-                placeholder="e.g., Active, Health-conscious, Digital-first"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Pain Points</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.psychographics.pain_points}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  psychographics: { ...formData.psychographics, pain_points: e.target.value }
-                })}
-                placeholder="e.g., Time constraints, Budget limitations"
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Goals</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.psychographics.goals}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  psychographics: { ...formData.psychographics, goals: e.target.value }
-                })}
-                placeholder="e.g., Career advancement, Better work-life balance"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Buying Behavior</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.psychographics.buying_behavior}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  psychographics: { ...formData.psychographics, buying_behavior: e.target.value }
-                })}
-                placeholder="e.g., Research-driven, Loyal to brands, Early adopters"
-              />
-            </div>
+          <div className="form-group">
+            <label className="form-label">Preferred Channels</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.channels}
+              onChange={(e) => setFormData({ ...formData, channels: e.target.value })}
+              placeholder="e.g., Instagram, LinkedIn, Email, YouTube"
+            />
+            <p className="form-hint">Comma-separated list of channels</p>
           </div>
 
           {error && (

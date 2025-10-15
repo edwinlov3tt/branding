@@ -173,14 +173,17 @@ export interface EditedBrandData {
 // Target Audience Types
 export interface TargetAudience {
   id: string;
+  brand_id: string;
   name: string;
-  description: string;
-  demographics: string;
-  interests: string[];
-  painPoints: string[];
-  goals: string[];
-  budgetRange: string;
-  channels: string[];
+  description?: string;
+  demographics?: string;
+  interests?: string[];
+  pain_points?: string[];
+  goals?: string[];
+  budget_range?: string;
+  channels?: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Legacy Persona type (for backward compatibility)
@@ -296,6 +299,151 @@ export interface BrandIntelligence {
   updated_at: string;
 }
 
+// Brand Profile Types (from Brand Profiler API)
+export interface BrandProfile {
+  id: string;
+  brand_id: string;
+  job_id?: string;
+  profile_status: 'processing' | 'completed' | 'failed';
+
+  // Brand information
+  brand_name?: string;
+  tagline?: string;
+  story?: string;
+  mission?: string;
+  positioning?: string;
+  value_props: string[];
+
+  // Voice attributes
+  personality: string[];
+  tone_sliders: {
+    formal: number;
+    playful: number;
+    premium: number;
+    technical: number;
+    energetic: number;
+  };
+  lexicon_preferred: string[];
+  lexicon_avoid: string[];
+
+  // Audience insights
+  primary_audience?: string;
+  audience_needs: string[];
+  audience_pain_points: string[];
+
+  // Writing guide
+  sentence_length?: 'short' | 'medium' | 'long';
+  paragraph_style?: string;
+  formatting_guidelines?: string;
+  writing_avoid: string[];
+
+  // Analysis metadata
+  pages_crawled: number;
+  reviews_analyzed: number;
+  analysis_duration?: string;
+  review_sources: {
+    google?: number;
+    yelp?: number;
+    facebook?: number;
+  };
+  confidence_score?: number;
+
+  // Raw response
+  raw_response?: any;
+
+  created_at: string;
+  updated_at: string;
+}
+
+// Brand Profiler API Response Types
+export interface BrandProfilerResponse {
+  success: boolean;
+  jobId?: string;
+  status: 'processing' | 'completed' | 'failed';
+  domain: string;
+  startedAt?: string;
+  completedAt?: string;
+  brandProfile?: {
+    brand: {
+      name: string;
+      tagline?: string;
+      story?: string;
+      mission?: string;
+      positioning: string;
+      valueProps: string[];
+    };
+    voice: {
+      personality: string[];
+      toneSliders: {
+        formal: number;
+        playful: number;
+        premium: number;
+        technical: number;
+        energetic: number;
+      };
+      lexicon: {
+        preferred: string[];
+        avoid: string[];
+      };
+    };
+    audience: {
+      primary: string;
+      needs: string[];
+      painPoints: string[];
+    };
+    writingGuide: {
+      sentenceLength: 'short' | 'medium' | 'long';
+      paragraphStyle: string;
+      formatting: string;
+      avoid: string[];
+    };
+  };
+  insights?: {
+    pagesCrawled: number;
+    reviewsAnalyzed: number;
+    duration: string;
+    sources: {
+      google: number;
+      yelp: number;
+      facebook: number;
+    };
+  };
+  progress?: {
+    discovery: boolean;
+    discoveryData?: any;
+    scraping: boolean;
+    scrapingData?: any;
+    reviews: boolean;
+    synthesis: boolean;
+  };
+  error?: string;
+}
+
+// Brand Images Types
+export interface BrandImagePage {
+  id: string;
+  brand_id: string;
+  page_url: string;
+  page_title?: string;
+  page_category?: string;
+  relevance_score: number;
+  images: PageImage[];
+  images_count: number;
+  last_fetched_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BrandImagesResponse {
+  success: boolean;
+  data: BrandImagePage[];
+  meta: {
+    total: number;
+    isStale: boolean;
+    cacheAge: number;
+  };
+}
+
 // Competitor Analysis Types
 export interface CompetitorAnalysis {
   id: string;
@@ -364,6 +512,8 @@ export interface Brand {
   createdAt: string;
   lastModified: string;
   brandData?: BrandData;
+  brandProfile?: BrandProfile;
+  brandImages?: BrandImagePage[];
   audiences?: TargetAudience[];
   products?: ProductService[];
   campaigns?: Campaign[];

@@ -266,3 +266,98 @@ export const getBrandAssets = async (brandId: string): Promise<BrandExtractRespo
   }
 }
 
+// Brand Profile API methods
+export const getBrandProfile = async (brandId: string) => {
+  try {
+    const response = await apiClient.get(`/api/brand-profile?brand_id=${brandId}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch brand profile:', error)
+    throw error
+  }
+}
+
+export const createBrandProfile = async (
+  brandId: string,
+  domain: string,
+  options: {
+    includeReviews?: boolean
+    maxPages?: number
+    mode?: 'sync' | 'async'
+  } = {}
+) => {
+  try {
+    const response = await apiClient.post('/api/brand-profile', {
+      brand_id: brandId,
+      domain,
+      includeReviews: options.includeReviews !== false,
+      maxPages: options.maxPages || 20,
+      mode: options.mode || 'sync'
+    })
+    return response.data
+  } catch (error) {
+    console.error('Failed to create brand profile:', error)
+    throw error
+  }
+}
+
+export const pollBrandProfile = async (jobId: string, brandId: string) => {
+  try {
+    const response = await apiClient.put('/api/brand-profile', {
+      job_id: jobId,
+      brand_id: brandId
+    })
+    return response.data
+  } catch (error) {
+    console.error('Failed to poll brand profile:', error)
+    throw error
+  }
+}
+
+// Brand Images API methods
+export const getBrandImages = async (brandId: string) => {
+  try {
+    const response = await apiClient.get(`/api/brand-images?brand_id=${brandId}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to fetch brand images:', error)
+    throw error
+  }
+}
+
+export const saveBrandImages = async (
+  brandId: string,
+  pages: Array<{
+    page_url: string
+    page_title?: string
+    page_category?: string
+    relevance_score?: number
+    images: any[]
+  }>
+) => {
+  try {
+    const response = await apiClient.post('/api/brand-images', {
+      brand_id: brandId,
+      pages
+    })
+    return response.data
+  } catch (error) {
+    console.error('Failed to save brand images:', error)
+    throw error
+  }
+}
+
+export const clearBrandImagesCache = async (brandId: string, pageUrl?: string) => {
+  try {
+    const params = new URLSearchParams({ brand_id: brandId })
+    if (pageUrl) {
+      params.append('page_url', pageUrl)
+    }
+    const response = await apiClient.delete(`/api/brand-images?${params.toString()}`)
+    return response.data
+  } catch (error) {
+    console.error('Failed to clear brand images cache:', error)
+    throw error
+  }
+}
+

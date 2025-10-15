@@ -52,6 +52,12 @@
   accent-color: var(--brand-red);
 }
 
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
 .form-hint {
   color: var(--text-secondary);
   font-size: 14px;
@@ -65,5 +71,9 @@
 
   .campaign-form {
     padding: 20px;
+  }
+
+  .form-row-3 {
+    grid-template-columns: 1fr;
   }
 }

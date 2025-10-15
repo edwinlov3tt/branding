@@ -74,7 +74,9 @@ module.exports = async (req, res) => {
         recommendations,
         key_findings,
         analysis_model,
-        analysis_confidence
+        analysis_confidence,
+        analysis_start_date,
+        analysis_end_date
       } = req.body;
 
       if (!brand_id || !competitor_name) {
@@ -92,8 +94,9 @@ module.exports = async (req, res) => {
           positioning, creative_strategy, messaging_analysis,
           visual_design_elements, target_audience_insights,
           performance_indicators, recommendations, key_findings,
-          analysis_model, analysis_confidence, analysis_date
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CURRENT_TIMESTAMP)
+          analysis_model, analysis_confidence, analysis_date,
+          analysis_start_date, analysis_end_date
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CURRENT_TIMESTAMP, $20, $21)
         RETURNING *`,
         [
           brand_id,
@@ -114,7 +117,9 @@ module.exports = async (req, res) => {
           JSON.stringify(recommendations || []),
           JSON.stringify(key_findings || []),
           analysis_model,
-          analysis_confidence
+          analysis_confidence,
+          analysis_start_date,
+          analysis_end_date
         ]
       );
 
@@ -124,7 +129,15 @@ module.exports = async (req, res) => {
       });
     }
     else if (req.method === 'DELETE') {
-      const { id } = req.query;
+      // Extract id from URL path (e.g., /api/competitor-analyses/uuid)
+      let id = req.query.id;
+
+      if (!id && req.url) {
+        const urlParts = req.url.split('/');
+        const lastPart = urlParts[urlParts.length - 1];
+        // Remove query string if present
+        id = lastPart.split('?')[0];
+      }
 
       if (!id) {
         res.status(400).json({
