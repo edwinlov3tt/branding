@@ -590,8 +590,17 @@
         '/api/ai': {
           action: 'generate-audiences',
           brand_id: testContext.brandId
+        },
+        '/api/campaigns/:id/generate-creatives': {
+          // No body needed - campaign_id comes from path parameter
         }
       };
+
+      // For paths with :id parameter, check if we have a specific payload
+      // If not, return a minimal payload or null
+      if (path.includes(':id')) {
+        return payloads[path] || null;
+      }
 
       return payloads[path] || { brand_id: testContext.brandId };
     }
@@ -617,15 +626,15 @@
           headers: { 'Content-Type': 'application/json' }
         };
 
-        // Handle GET requests
-        if (method === 'GET') {
-          // Replace path parameters with real values
-          if (path.includes(':slug/:shortId')) {
-            url = url.replace(':slug/:shortId', `${testContext.slug}/${testContext.shortId}`);
-          } else if (path.includes(':id')) {
-            url = url.replace(':id', testContext.brandId);
-          }
+        // Replace path parameters with real values for ALL HTTP methods
+        if (path.includes(':slug/:shortId')) {
+          url = url.replace(':slug/:shortId', `${testContext.slug}/${testContext.shortId}`);
+        } else if (path.includes(':id')) {
+          url = url.replace(':id', testContext.brandId);
+        }
 
+        // Handle GET requests - add query parameters
+        if (method === 'GET') {
           // Add brand_id query parameter for endpoints that need it
           if (path.includes('brand-assets') ||
               path.includes('brand-profile') ||
@@ -642,7 +651,7 @@
           }
         }
 
-        // Handle POST/PUT/DELETE requests
+        // Handle POST/PUT/DELETE requests - add request body
         if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
           const payload = getTestPayload(path, method);
           if (payload) {
