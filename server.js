@@ -4,7 +4,15 @@ const axios = require('axios');
 const { Pool } = require('pg');
 const slugify = require('slugify');
 const { nanoid } = require('nanoid');
-require('dotenv').config({ path: '.env.local' });
+
+// Load .env.local file if it exists (for local development)
+// In production (Railway), environment variables are injected directly
+try {
+  require('dotenv').config({ path: '.env.local' });
+} catch (e) {
+  // dotenv not installed or .env.local not found - use environment variables
+  console.log('Using environment variables (production mode)');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
