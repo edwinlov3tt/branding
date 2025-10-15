@@ -1,9 +1,9 @@
 import axios from 'axios'
 
 // API Configuration
-// Use relative URLs to leverage Vite proxy in development
-// In production (Vercel), use relative URLs to call the API functions
-export const API_BASE_URL = ''
+// Use environment variable to point to Railway backend
+// Falls back to empty string for local development with Vite proxy
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 export const CLAUDE_API_KEY = import.meta.env.VITE_CLAUDE_API_KEY || ''
 export const CLAUDE_MODEL = import.meta.env.VITE_CLAUDE_MODEL || 'claude-3-opus-20240229'
 export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || ''
