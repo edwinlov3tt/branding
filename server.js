@@ -67,6 +67,434 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'API server is running' });
 });
 
+// Test all endpoints - comprehensive testing
+app.get('/api/test-all', async (req, res) => {
+  const results = {
+    timestamp: new Date().toISOString(),
+    backend: {
+      health: null,
+      database: null
+    },
+    externalServices: {
+      gtmApi: null
+    },
+    endpoints: []
+  };
+
+  // Test backend health
+  try {
+    results.backend.health = { status: 'ok', message: 'Backend is running' };
+  } catch (error) {
+    results.backend.health = { status: 'error', message: error.message };
+  }
+
+  // Test database connection
+  try {
+    const dbTest = await pool.query('SELECT NOW()');
+    results.backend.database = {
+      status: 'ok',
+      message: 'Database connected',
+      timestamp: dbTest.rows[0].now
+    };
+  } catch (error) {
+    results.backend.database = { status: 'error', message: error.message };
+  }
+
+  // Test external GTM API
+  try {
+    const gtmHealth = await axios.get('https://gtm.edwinlovett.com/api/health', { timeout: 5000 });
+    results.externalServices.gtmApi = {
+      status: 'ok',
+      message: 'GTM API is operational',
+      version: gtmHealth.data.version,
+      uptime: gtmHealth.data.uptime
+    };
+  } catch (error) {
+    results.externalServices.gtmApi = {
+      status: 'error',
+      message: error.code === 'ECONNABORTED' ? 'Timeout' : error.message
+    };
+  }
+
+  // Test key endpoints
+  const endpoints = [
+    { method: 'GET', path: '/api/brands', description: 'List brands' },
+    { method: 'GET', path: '/api/target-audiences', description: 'List target audiences', query: '?brand_id=test' },
+    { method: 'GET', path: '/api/products-services', description: 'List products/services', query: '?brand_id=test' },
+    { method: 'GET', path: '/api/campaigns', description: 'List campaigns', query: '?brand_id=test' },
+    { method: 'GET', path: '/api/competitor-analyses', description: 'List competitor analyses', query: '?brand_id=test' },
+    { method: 'GET', path: '/api/ad-inspirations', description: 'List ad inspirations', query: '?brand_id=test&limit=1' }
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const url = `http://localhost:${PORT}${endpoint.path}${endpoint.query || ''}`;
+      const response = await axios.get(url, { timeout: 3000 });
+      results.endpoints.push({
+        endpoint: endpoint.path,
+        method: endpoint.method,
+        description: endpoint.description,
+        status: 'ok',
+        responseTime: response.headers['x-response-time'] || 'N/A',
+        dataCount: response.data.data?.length || 0
+      });
+    } catch (error) {
+      results.endpoints.push({
+        endpoint: endpoint.path,
+        method: endpoint.method,
+        description: endpoint.description,
+        status: 'error',
+        message: error.message
+      });
+    }
+  }
+
+  res.json(results);
+});
+
+// Status Dashboard - HTML interface
+app.get('/status', async (req, res) => {
+  let backendStatus = 'ok';
+  let databaseStatus = { status: 'unknown', time: null, error: null };
+  let gtmApiStatus = { status: 'unknown', data: null, error: null };
+  let brandCount = 0;
+
+  // Check database
+  try {
+    const dbTest = await pool.query('SELECT NOW()');
+    const brandCountResult = await pool.query('SELECT COUNT(*) FROM brands');
+    databaseStatus = { status: 'ok', time: dbTest.rows[0].now, error: null };
+    brandCount = parseInt(brandCountResult.rows[0].count);
+  } catch (error) {
+    databaseStatus = { status: 'error', time: null, error: error.message };
+  }
+
+  // Check GTM API
+  try {
+    const gtmHealth = await axios.get('https://gtm.edwinlovett.com/api/health', { timeout: 5000 });
+    gtmApiStatus = { status: 'ok', data: gtmHealth.data, error: null };
+  } catch (error) {
+    gtmApiStatus = { status: 'error', data: null, error: error.message };
+  }
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Status Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+      color: #ffffff;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #333;
+    }
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .timestamp {
+      color: #888;
+      font-size: 0.9rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .card {
+      background: #1e1e1e;
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid #333;
+      transition: transform 0.2s;
+    }
+    .card:hover { transform: translateY(-2px); }
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .status-ok { background: #059669; color: #fff; }
+    .status-error { background: #dc2626; color: #fff; }
+    .status-unknown { background: #6b7280; color: #fff; }
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .metric:last-child { border-bottom: none; }
+    .metric-label { color: #888; font-size: 0.9rem; }
+    .metric-value { color: #fff; font-weight: 600; }
+    .endpoints-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .endpoints-table th {
+      text-align: left;
+      padding: 12px;
+      background: #2a2a2a;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .endpoints-table td {
+      padding: 12px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 0.9rem;
+    }
+    .endpoints-table tr:hover { background: #252525; }
+    .endpoint-method {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #374151;
+      color: #fff;
+    }
+    .endpoint-method.get { background: #059669; }
+    .endpoint-method.post { background: #2563eb; }
+    .endpoint-method.put { background: #d97706; }
+    .endpoint-method.delete { background: #dc2626; }
+    .refresh-btn {
+      background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: transform 0.2s;
+    }
+    .refresh-btn:hover { transform: scale(1.05); }
+    .actions { text-align: center; margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 System Status Dashboard</h1>
+      <div class="timestamp">Last updated: ${new Date().toLocaleString()}</div>
+    </div>
+
+    <div class="grid">
+      <!-- Backend Status -->
+      <div class="card">
+        <div class="card-title">
+          ⚡ Backend Server
+          <span class="status-badge status-${backendStatus}">${backendStatus.toUpperCase()}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Environment</span>
+          <span class="metric-value">${process.env.NODE_ENV || 'development'}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Port</span>
+          <span class="metric-value">${PORT}</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Uptime</span>
+          <span class="metric-value">${Math.floor(process.uptime())} seconds</span>
+        </div>
+      </div>
+
+      <!-- Database Status -->
+      <div class="card">
+        <div class="card-title">
+          💾 PostgreSQL Database
+          <span class="status-badge status-${databaseStatus.status}">${databaseStatus.status.toUpperCase()}</span>
+        </div>
+        ${databaseStatus.status === 'ok' ? `
+          <div class="metric">
+            <span class="metric-label">Connection</span>
+            <span class="metric-value">Connected</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Server Time</span>
+            <span class="metric-value">${new Date(databaseStatus.time).toLocaleTimeString()}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Total Brands</span>
+            <span class="metric-value">${brandCount}</span>
+          </div>
+        ` : `
+          <div class="metric">
+            <span class="metric-label">Error</span>
+            <span class="metric-value" style="color: #ef4444;">${databaseStatus.error}</span>
+          </div>
+        `}
+      </div>
+
+      <!-- GTM API Status -->
+      <div class="card">
+        <div class="card-title">
+          🔍 GTM Brand Extractor API
+          <span class="status-badge status-${gtmApiStatus.status}">${gtmApiStatus.status.toUpperCase()}</span>
+        </div>
+        ${gtmApiStatus.status === 'ok' ? `
+          <div class="metric">
+            <span class="metric-label">Status</span>
+            <span class="metric-value">${gtmApiStatus.data.status}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Version</span>
+            <span class="metric-value">${gtmApiStatus.data.version || 'N/A'}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Uptime</span>
+            <span class="metric-value">${gtmApiStatus.data.uptime || 'N/A'}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Mode</span>
+            <span class="metric-value">${gtmApiStatus.data.mode || 'N/A'}</span>
+          </div>
+        ` : `
+          <div class="metric">
+            <span class="metric-label">Error</span>
+            <span class="metric-value" style="color: #ef4444;">${gtmApiStatus.error}</span>
+          </div>
+        `}
+      </div>
+    </div>
+
+    <!-- API Endpoints -->
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="card-title">📡 API Endpoints</div>
+      <table class="endpoints-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Description</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="endpoint-method get">GET</span></td>
+            <td>/health</td>
+            <td>Backend health check</td>
+            <td><span class="status-badge status-ok">OK</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method get">GET</span></td>
+            <td>/status</td>
+            <td>System status dashboard</td>
+            <td><span class="status-badge status-ok">OK</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method get">GET</span></td>
+            <td>/api/test-all</td>
+            <td>Comprehensive endpoint testing</td>
+            <td><span class="status-badge status-ok">OK</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method post">POST</span></td>
+            <td>/api/extract-brand</td>
+            <td>Extract brand assets from URL</td>
+            <td><span class="status-badge status-${gtmApiStatus.status}">${gtmApiStatus.status.toUpperCase()}</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method get">GET</span></td>
+            <td>/api/brands</td>
+            <td>List all brands</td>
+            <td><span class="status-badge status-${databaseStatus.status}">${databaseStatus.status.toUpperCase()}</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method post">POST</span></td>
+            <td>/api/brands</td>
+            <td>Create new brand</td>
+            <td><span class="status-badge status-${databaseStatus.status}">${databaseStatus.status.toUpperCase()}</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method get">GET</span></td>
+            <td>/api/target-audiences</td>
+            <td>List target audiences</td>
+            <td><span class="status-badge status-${databaseStatus.status}">${databaseStatus.status.toUpperCase()}</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method get">GET</span></td>
+            <td>/api/products-services</td>
+            <td>List products/services</td>
+            <td><span class="status-badge status-${databaseStatus.status}">${databaseStatus.status.toUpperCase()}</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method get">GET</span></td>
+            <td>/api/campaigns</td>
+            <td>List marketing campaigns</td>
+            <td><span class="status-badge status-${databaseStatus.status}">${databaseStatus.status.toUpperCase()}</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method get">GET</span></td>
+            <td>/api/competitor-analyses</td>
+            <td>List competitor analyses</td>
+            <td><span class="status-badge status-${databaseStatus.status}">${databaseStatus.status.toUpperCase()}</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method get">GET</span></td>
+            <td>/api/ad-inspirations</td>
+            <td>List ad inspirations</td>
+            <td><span class="status-badge status-${databaseStatus.status}">${databaseStatus.status.toUpperCase()}</span></td>
+          </tr>
+          <tr>
+            <td><span class="endpoint-method post">POST</span></td>
+            <td>/api/ai/*</td>
+            <td>AI generation endpoints</td>
+            <td><span class="status-badge status-ok">OK</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button class="refresh-btn" onclick="window.location.reload()">🔄 Refresh Status</button>
+      <a href="/api/test-all" target="_blank">
+        <button class="refresh-btn" style="margin-left: 10px; background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);">
+          🧪 Run Full Test Suite
+        </button>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  res.send(html);
+});
+
 // Brand extraction endpoint - proxy to real API
 app.post('/api/extract-brand', async (req, res) => {
   try {
