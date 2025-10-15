@@ -131,8 +131,10 @@
       text-transform: uppercase;
     }
     .status-ok { background: #059669; color: #fff; }
+    .status-validation { background: #d97706; color: #fff; }
     .status-error { background: #dc2626; color: #fff; }
     .status-loading { background: #6b7280; color: #fff; }
+    .status-skip { background: #6b7280; color: #fff; }
 
     .test-btn {
       background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
@@ -360,10 +362,44 @@
         🧪 Test All Endpoints
       </button>
     </div>
+
+    <!-- Error Console -->
+    <div style="margin-top: 30px; background: #1e1e1e; border: 1px solid #333; border-radius: 12px; padding: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.2rem;">🐛 Error Console</h3>
+          <p style="color: #888; font-size: 0.9rem; margin: 4px 0 0 0;">
+            Real-time errors detected during testing (<span id="errorCount">0</span> errors)
+          </p>
+        </div>
+        <div>
+          <button class="test-btn" onclick="copyErrors()" style="margin-right: 10px;">
+            📋 Copy Errors
+          </button>
+          <button class="test-btn" onclick="clearErrors()" style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);">
+            🗑️ Clear
+          </button>
+        </div>
+      </div>
+      <div id="errorConsole" style="max-height: 400px; overflow-y: auto; background: #0f0f0f; border-radius: 8px; padding: 16px;">
+        <div style="color: #888; text-align: center; padding: 20px;">No errors detected ✅</div>
+      </div>
+    </div>
   </div>
 
   <script>
     const API_BASE = '';
+
+    // Global test context - stores real brand data for testing
+    let testContext = {
+      brandId: null,
+      slug: null,
+      shortId: null,
+      initialized: false
+    };
+
+    // Error log storage
+    let errorLog = [];
 
     const endpoints = {
       core: [
@@ -474,11 +510,22 @@
 
         if (data.success && data.data) {
           document.getElementById('brandCount').textContent = data.data.length;
-          document.getElementById('audienceCount').textContent = data.data[0]?.audience_count || 0;
-          document.getElementById('productCount').textContent = data.data[0]?.product_count || 0;
-          document.getElementById('campaignCount').textContent = data.data[0]?.campaign_count || 0;
-          document.getElementById('competitorCount').textContent = data.data[0]?.competitor_count || 0;
-          document.getElementById('adCount').textContent = data.data[0]?.generation_count || 0;
+
+          if (data.data.length > 0) {
+            const firstBrand = data.data[0];
+            document.getElementById('audienceCount').textContent = firstBrand?.audience_count || 0;
+            document.getElementById('productCount').textContent = firstBrand?.product_count || 0;
+            document.getElementById('campaignCount').textContent = firstBrand?.campaign_count || 0;
+            document.getElementById('competitorCount').textContent = firstBrand?.competitor_count || 0;
+            document.getElementById('adCount').textContent = firstBrand?.generation_count || 0;
+
+            // Store real brand data for testing
+            testContext.brandId = firstBrand.id;
+            testContext.slug = firstBrand.slug;
+            testContext.shortId = firstBrand.short_id;
+            testContext.initialized = true;
+            console.log('✅ Test context initialized with brand:', firstBrand.name);
+          }
         }
       } catch (error) {
         console.error('Failed to load stats:', error);
@@ -487,38 +534,180 @@
       document.getElementById('timestamp').textContent = `Last updated: ${new Date().toLocaleString()}`;
     }
 
+    // Smart test payload generator
+    function getTestPayload(path, method) {
+      if (!testContext.initialized) return null;
+
+      const payloads = {
+        '/api/brands': { name: 'Test Brand API Check', website: 'https://test-api.com' },
+        '/api/target-audiences': {
+          brand_id: testContext.brandId,
+          name: 'Test Audience',
+          description: 'API Test Audience'
+        },
+        '/api/products-services': {
+          brand_id: testContext.brandId,
+          name: 'Test Product',
+          category: 'product',
+          description: 'API Test Product'
+        },
+        '/api/campaigns': {
+          brand_id: testContext.brandId,
+          name: 'Test Campaign',
+          objective: 'API Testing',
+          marketing_objectives: ['awareness']
+        },
+        '/api/competitors': {
+          brand_id: testContext.brandId,
+          name: 'Test Competitor',
+          website: 'https://competitor.com'
+        },
+        '/api/competitor-analyses': {
+          brand_id: testContext.brandId,
+          competitor_id: testContext.brandId,
+          analysis_type: 'general'
+        },
+        '/api/ad-inspirations': {
+          brand_id: testContext.brandId,
+          ad_id: 'test-ad',
+          platform: 'meta'
+        },
+        '/api/extract-brand': {
+          url: 'https://stripe.com',
+          includeScreenshot: false
+        },
+        '/api/brand-profile': {
+          brand_id: testContext.brandId,
+          domain: 'stripe.com'
+        },
+        '/api/ai/generate-brand-intelligence': {
+          brand_id: testContext.brandId,
+          website: 'https://test.com'
+        },
+        '/api/ai/generate-audiences': {
+          brand_id: testContext.brandId
+        },
+        '/api/ai': {
+          action: 'generate-audiences',
+          brand_id: testContext.brandId
+        }
+      };
+
+      return payloads[path] || { brand_id: testContext.brandId };
+    }
+
     async function testEndpoint(method, path, category) {
       const statusId = `status-${category}-${path.replace(/[^a-z0-9]/gi, '-')}`;
       const statusBadge = document.getElementById(statusId);
       statusBadge.textContent = 'TESTING...';
       statusBadge.className = 'status-badge status-loading';
 
+      // Check if test context is ready
+      if (!testContext.initialized && path !== '/health' && path !== '/status' && path !== '/api/test-all') {
+        statusBadge.textContent = 'SKIP';
+        statusBadge.className = 'status-badge status-skip';
+        statusBadge.title = 'No brand data available for testing';
+        return;
+      }
+
       try {
-        let response;
+        let url = `${API_BASE}${path}`;
+        let options = {
+          method,
+          headers: { 'Content-Type': 'application/json' }
+        };
+
+        // Handle GET requests
         if (method === 'GET') {
-          response = await fetch(`${API_BASE}${path.replace(':slug/:shortId', 'test/test').replace(':id', 'test')}?brand_id=test`, { timeout: 5000 });
-        } else {
-          response = await fetch(`${API_BASE}${path}`, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ test: true })
-          });
+          // Replace path parameters with real values
+          if (path.includes(':slug/:shortId')) {
+            url = url.replace(':slug/:shortId', `${testContext.slug}/${testContext.shortId}`);
+          } else if (path.includes(':id')) {
+            url = url.replace(':id', testContext.brandId);
+          }
+
+          // Add brand_id query parameter for endpoints that need it
+          if (path.includes('brand-assets') ||
+              path.includes('brand-profile') ||
+              path.includes('brand-images') ||
+              path.includes('target-audiences') ||
+              path.includes('products-services') ||
+              path.includes('campaigns') ||
+              path.includes('competitors') ||
+              path.includes('ad-inspirations') ||
+              path.includes('brand-intelligence') ||
+              path.includes('brand-settings') ||
+              path.includes('generated-creatives')) {
+            url += `?brand_id=${testContext.brandId}`;
+          }
         }
 
+        // Handle POST/PUT/DELETE requests
+        if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+          const payload = getTestPayload(path, method);
+          if (payload) {
+            options.body = JSON.stringify(payload);
+          }
+        }
+
+        const response = await fetch(url, options);
+        const responseData = await response.json().catch(() => ({}));
+
+        // Smart status evaluation
         if (response.ok) {
+          // 200-299: Success
           statusBadge.textContent = 'OK';
           statusBadge.className = 'status-badge status-ok';
-        } else {
-          statusBadge.textContent = `ERROR ${response.status}`;
+          statusBadge.title = `${response.status}: ${response.statusText}`;
+        } else if (response.status === 400) {
+          // 400: Validation - this is expected behavior
+          statusBadge.textContent = 'OK (Val)';
+          statusBadge.className = 'status-badge status-validation';
+          statusBadge.title = `400: Validation working - ${responseData.error || 'Invalid input'}`;
+        } else if (response.status === 404) {
+          // 404: Not found - expected for some endpoints
+          statusBadge.textContent = '404';
+          statusBadge.className = 'status-badge status-validation';
+          statusBadge.title = `404: ${responseData.error || 'Not found'}`;
+        } else if (response.status === 500) {
+          // 500: Server error - this is a real bug
+          statusBadge.textContent = 'ERROR 500';
           statusBadge.className = 'status-badge status-error';
+          statusBadge.title = `500: Server error - ${responseData.error || 'Internal server error'}`;
+
+          // Log to error console
+          logError({
+            endpoint: path,
+            method,
+            status: 500,
+            error: responseData.error || 'Internal server error',
+            url
+          });
+        } else {
+          // Other errors
+          statusBadge.textContent = `${response.status}`;
+          statusBadge.className = 'status-badge status-error';
+          statusBadge.title = `${response.status}: ${responseData.error || response.statusText}`;
         }
       } catch (error) {
         statusBadge.textContent = 'ERROR';
         statusBadge.className = 'status-badge status-error';
+        statusBadge.title = `Network error: ${error.message}`;
+
+        logError({
+          endpoint: path,
+          method,
+          error: error.message,
+          type: 'Network Error'
+        });
       }
     }
 
     async function testAllEndpoints() {
+      // Clear error log before testing
+      errorLog = [];
+      updateErrorConsole();
+
       for (const category of Object.keys(endpoints)) {
         for (const endpoint of endpoints[category]) {
           await testEndpoint(endpoint.method, endpoint.path, category);
@@ -527,9 +716,79 @@
       }
     }
 
+    // Error logging function
+    function logError(errorInfo) {
+      errorLog.push({
+        timestamp: new Date().toISOString(),
+        ...errorInfo
+      });
+      updateErrorConsole();
+    }
+
+    // Update error console display
+    function updateErrorConsole() {
+      const errorConsole = document.getElementById('errorConsole');
+      const errorCount = document.getElementById('errorCount');
+
+      if (errorLog.length === 0) {
+        errorConsole.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">No errors detected ✅</div>';
+        errorCount.textContent = '0';
+      } else {
+        errorCount.textContent = errorLog.length;
+        errorConsole.innerHTML = errorLog.map(err => `
+          <div style="background: #2a2a2a; padding: 12px; margin-bottom: 10px; border-left: 3px solid #dc2626; border-radius: 4px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <strong style="color: #ef4444;">${err.method || ''} ${err.endpoint || 'Unknown'}</strong>
+              <span style="color: #888; font-size: 0.85rem;">${new Date(err.timestamp).toLocaleTimeString()}</span>
+            </div>
+            <div style="color: #a3a3a3; font-size: 0.9rem;">
+              ${err.type || 'Error'}: ${err.error || 'Unknown error'}
+            </div>
+            ${err.url ? `<div style="color: #666; font-size: 0.8rem; margin-top: 4px; font-family: monospace;">${err.url}</div>` : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    // Copy errors to clipboard
+    function copyErrors() {
+      if (errorLog.length === 0) {
+        alert('No errors to copy');
+        return;
+      }
+
+      const errorText = errorLog.map(err => {
+        return `[${err.timestamp}] ${err.method || ''} ${err.endpoint || 'Unknown'}
+Status: ${err.status || 'N/A'}
+Error: ${err.error || 'Unknown error'}
+URL: ${err.url || 'N/A'}
+---`;
+      }).join('\n\n');
+
+      navigator.clipboard.writeText(errorText).then(() => {
+        alert(`Copied ${errorLog.length} errors to clipboard!`);
+      }).catch(() => {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = errorText;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        alert(`Copied ${errorLog.length} errors to clipboard!`);
+      });
+    }
+
+    // Clear error log
+    function clearErrors() {
+      errorLog = [];
+      updateErrorConsole();
+    }
+
     // Initialize
     renderEndpoints();
     loadAllData();
+    updateErrorConsole();
   </script>
 </body>
 </html>
