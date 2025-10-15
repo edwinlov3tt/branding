@@ -874,8 +874,11 @@ URL: ${err.url || 'N/A'}
         analysisId: null
       };
 
+      let passed = 0;
+      let failed = 0;
+
+      // TEST 1: Create Brand
       try {
-        // TEST 1: Create Brand
         crudLog('\n📝 TEST 1: Creating test brand...', 'info');
         const brandResponse = await fetch(`${API_BASE}/api/brands`, {
           method: 'POST',
@@ -892,268 +895,449 @@ URL: ${err.url || 'N/A'}
           testData.brandId = brandData.data.id;
           crudLog(`✅ Brand created: ${testData.brandId}`, 'success');
           updateCRUDStatus('/api/brands', 'brands', 'ok');
+          passed++;
         } else {
-          throw new Error('Failed to create brand');
+          throw new Error(brandData.error || 'Failed to create brand');
         }
-
-        // TEST 2: Update Brand
-        crudLog('\n📝 TEST 2: Updating brand...', 'info');
-        const updateBrandResponse = await fetch(`${API_BASE}/api/brands`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: testData.brandId,
-            name: 'CRUD Test Brand - Updated',
-            primary_color: '#0000FF'
-          })
-        });
-        if (updateBrandResponse.ok) {
-          crudLog('✅ Brand updated successfully', 'success');
-          updateCRUDStatus('/api/brands', 'brands', 'ok');
-        } else {
-          throw new Error('Failed to update brand');
-        }
-
-        // TEST 3: Create Product/Service
-        crudLog('\n📝 TEST 3: Creating product/service...', 'info');
-        const productResponse = await fetch(`${API_BASE}/api/products-services`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            brand_id: testData.brandId,
-            name: 'Test Product',
-            category: 'Software',
-            description: 'Test product for CRUD',
-            price: '$99.99',
-            features: ['Feature 1', 'Feature 2']
-          })
-        });
-        const productData = await productResponse.json();
-        if (productData.success && productData.data) {
-          testData.productId = productData.data.id;
-          crudLog(`✅ Product created: ${testData.productId}`, 'success');
-          updateCRUDStatus('/api/products-services', 'products', 'ok');
-        } else {
-          throw new Error('Failed to create product');
-        }
-
-        // TEST 4: Update Product/Service
-        crudLog('\n📝 TEST 4: Updating product/service...', 'info');
-        const updateProductResponse = await fetch(`${API_BASE}/api/products-services`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: testData.productId,
-            name: 'Test Product - Updated',
-            price: '$149.99'
-          })
-        });
-        if (updateProductResponse.ok) {
-          crudLog('✅ Product updated successfully', 'success');
-          updateCRUDStatus('/api/products-services', 'products', 'ok');
-        } else {
-          throw new Error('Failed to update product');
-        }
-
-        // TEST 5: Delete Product/Service
-        crudLog('\n📝 TEST 5: Deleting product/service...', 'info');
-        const deleteProductResponse = await fetch(`${API_BASE}/api/products-services`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: testData.productId })
-        });
-        if (deleteProductResponse.ok) {
-          crudLog('✅ Product deleted successfully', 'success');
-          updateCRUDStatus('/api/products-services', 'products', 'ok');
-        } else {
-          throw new Error('Failed to delete product');
-        }
-
-        // TEST 6: Create Target Audience
-        crudLog('\n📝 TEST 6: Creating target audience...', 'info');
-        const audienceResponse = await fetch(`${API_BASE}/api/target-audiences`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            brand_id: testData.brandId,
-            name: 'Test Audience',
-            description: 'Test audience for CRUD',
-            age_range: '25-35',
-            interests: ['Technology', 'Innovation']
-          })
-        });
-        const audienceData = await audienceResponse.json();
-        if (audienceData.success && audienceData.data) {
-          testData.audienceId = audienceData.data.id;
-          crudLog(`✅ Audience created: ${testData.audienceId}`, 'success');
-          updateCRUDStatus('/api/target-audiences', 'audiences', 'ok');
-        } else {
-          throw new Error('Failed to create audience');
-        }
-
-        // TEST 7: Update Target Audience
-        crudLog('\n📝 TEST 7: Updating target audience...', 'info');
-        const updateAudienceResponse = await fetch(`${API_BASE}/api/target-audiences`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: testData.audienceId,
-            name: 'Test Audience - Updated',
-            age_range: '22-38'
-          })
-        });
-        if (updateAudienceResponse.ok) {
-          crudLog('✅ Audience updated successfully', 'success');
-          updateCRUDStatus('/api/target-audiences', 'audiences', 'ok');
-        } else {
-          throw new Error('Failed to update audience');
-        }
-
-        // TEST 8: Delete Target Audience
-        crudLog('\n📝 TEST 8: Deleting target audience...', 'info');
-        const deleteAudienceResponse = await fetch(`${API_BASE}/api/target-audiences`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: testData.audienceId })
-        });
-        if (deleteAudienceResponse.ok) {
-          crudLog('✅ Audience deleted successfully', 'success');
-          updateCRUDStatus('/api/target-audiences', 'audiences', 'ok');
-        } else {
-          throw new Error('Failed to delete audience');
-        }
-
-        // TEST 9: Create Campaign
-        crudLog('\n📝 TEST 9: Creating campaign...', 'info');
-        const campaignResponse = await fetch(`${API_BASE}/api/campaigns`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            brand_id: testData.brandId,
-            name: 'Test Campaign',
-            objective: 'Product Launch',
-            marketing_objectives: ['Brand Awareness'],
-            channels: ['Social Media'],
-            status: 'planning'
-          })
-        });
-        const campaignData = await campaignResponse.json();
-        if (campaignData.success && campaignData.data) {
-          testData.campaignId = campaignData.data.id;
-          crudLog(`✅ Campaign created: ${testData.campaignId}`, 'success');
-          updateCRUDStatus('/api/campaigns', 'campaigns', 'ok');
-        } else {
-          throw new Error('Failed to create campaign');
-        }
-
-        // TEST 10: Update Campaign
-        crudLog('\n📝 TEST 10: Updating campaign...', 'info');
-        const updateCampaignResponse = await fetch(`${API_BASE}/api/campaigns`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: testData.campaignId,
-            name: 'Test Campaign - Updated',
-            status: 'active'
-          })
-        });
-        if (updateCampaignResponse.ok) {
-          crudLog('✅ Campaign updated successfully', 'success');
-          updateCRUDStatus('/api/campaigns', 'campaigns', 'ok');
-        } else {
-          throw new Error('Failed to update campaign');
-        }
-
-        // TEST 11: Delete Campaign
-        crudLog('\n📝 TEST 11: Deleting campaign...', 'info');
-        const deleteCampaignResponse = await fetch(`${API_BASE}/api/campaigns`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: testData.campaignId })
-        });
-        if (deleteCampaignResponse.ok) {
-          crudLog('✅ Campaign deleted successfully', 'success');
-          updateCRUDStatus('/api/campaigns', 'campaigns', 'ok');
-        } else {
-          throw new Error('Failed to delete campaign');
-        }
-
-        // TEST 12: Create Competitor
-        crudLog('\n📝 TEST 12: Creating competitor...', 'info');
-        const competitorResponse = await fetch(`${API_BASE}/api/competitors`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            brand_id: testData.brandId,
-            name: 'Test Competitor',
-            website: 'https://competitor.com',
-            strengths: ['Strong brand'],
-            weaknesses: ['Higher pricing']
-          })
-        });
-        const competitorData = await competitorResponse.json();
-        if (competitorData.success && competitorData.data) {
-          testData.competitorId = competitorData.data.id;
-          crudLog(`✅ Competitor created: ${testData.competitorId}`, 'success');
-          updateCRUDStatus('/api/competitors', 'competitors', 'ok');
-        } else {
-          throw new Error('Failed to create competitor');
-        }
-
-        // TEST 13: Update Competitor
-        crudLog('\n📝 TEST 13: Updating competitor...', 'info');
-        const updateCompetitorResponse = await fetch(`${API_BASE}/api/competitors`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: testData.competitorId,
-            name: 'Test Competitor - Updated'
-          })
-        });
-        if (updateCompetitorResponse.ok) {
-          crudLog('✅ Competitor updated successfully', 'success');
-          updateCRUDStatus('/api/competitors', 'competitors', 'ok');
-        } else {
-          throw new Error('Failed to update competitor');
-        }
-
-        // TEST 14: Delete Competitor
-        crudLog('\n📝 TEST 14: Deleting competitor...', 'info');
-        const deleteCompetitorResponse = await fetch(`${API_BASE}/api/competitors`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: testData.competitorId })
-        });
-        if (deleteCompetitorResponse.ok) {
-          crudLog('✅ Competitor deleted successfully', 'success');
-          updateCRUDStatus('/api/competitors', 'competitors', 'ok');
-        } else {
-          throw new Error('Failed to delete competitor');
-        }
-
-        // TEST 15: Delete Brand (Cleanup)
-        crudLog('\n📝 TEST 15: Deleting test brand (cleanup)...', 'info');
-        const deleteBrandResponse = await fetch(`${API_BASE}/api/brands?id=${testData.brandId}`, {
-          method: 'DELETE'
-        });
-        if (deleteBrandResponse.ok) {
-          crudLog('✅ Brand deleted successfully', 'success');
-          updateCRUDStatus('/api/brands', 'brands', 'ok');
-        } else {
-          throw new Error('Failed to delete brand');
-        }
-
-        crudLog('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
-        crudLog('🎉 All CRUD tests passed successfully!', 'success');
-        crudLog(`📊 Total tests: 15 | ✅ Passed: 15 | ❌ Failed: 0`, 'success');
-
       } catch (error) {
-        crudLog(`\n❌ Test failed: ${error.message}`, 'error');
-        crudLog('Test data at failure: ' + JSON.stringify(testData, null, 2), 'warn');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = '🔬 Run CRUD Tests';
+        crudLog(`❌ TEST 1 Failed: ${error.message}`, 'error');
+        updateCRUDStatus('/api/brands', 'brands', 'error');
+        failed++;
       }
+
+      // TEST 2: Update Brand
+      if (testData.brandId) {
+        try {
+          crudLog('\n📝 TEST 2: Updating brand...', 'info');
+          const updateBrandResponse = await fetch(`${API_BASE}/api/brands`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: testData.brandId,
+              name: 'CRUD Test Brand - Updated',
+              primary_color: '#0000FF'
+            })
+          });
+          const updateBrandData = await updateBrandResponse.json();
+          if (updateBrandResponse.ok) {
+            crudLog('✅ Brand updated successfully', 'success');
+            updateCRUDStatus('/api/brands', 'brands', 'ok');
+            passed++;
+          } else {
+            throw new Error(updateBrandData.error || 'Failed to update brand');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 2 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/brands', 'brands', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 2 Skipped: No brand ID from TEST 1', 'warn');
+        failed++;
+      }
+
+      // TEST 3: Create Product/Service
+      if (testData.brandId) {
+        try {
+          crudLog('\n📝 TEST 3: Creating product/service...', 'info');
+          const productResponse = await fetch(`${API_BASE}/api/products-services`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              brand_id: testData.brandId,
+              name: 'Test Product',
+              category: 'Software',
+              description: 'Test product for CRUD',
+              price: '$99.99',
+              features: ['Feature 1', 'Feature 2']
+            })
+          });
+          const productData = await productResponse.json();
+          if (productData.success && productData.data) {
+            testData.productId = productData.data.id;
+            crudLog(`✅ Product created: ${testData.productId}`, 'success');
+            updateCRUDStatus('/api/products-services', 'products', 'ok');
+            passed++;
+          } else {
+            throw new Error(productData.error || 'Failed to create product');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 3 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/products-services', 'products', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 3 Skipped: No brand ID from TEST 1', 'warn');
+        failed++;
+      }
+
+      // TEST 4: Update Product/Service
+      if (testData.productId) {
+        try {
+          crudLog('\n📝 TEST 4: Updating product/service...', 'info');
+          const updateProductResponse = await fetch(`${API_BASE}/api/products-services`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: testData.productId,
+              name: 'Test Product - Updated',
+              price: '$149.99'
+            })
+          });
+          const updateProductData = await updateProductResponse.json();
+          if (updateProductResponse.ok) {
+            crudLog('✅ Product updated successfully', 'success');
+            updateCRUDStatus('/api/products-services', 'products', 'ok');
+            passed++;
+          } else {
+            throw new Error(updateProductData.error || 'Failed to update product');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 4 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/products-services', 'products', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 4 Skipped: No product ID from TEST 3', 'warn');
+        failed++;
+      }
+
+      // TEST 5: Delete Product/Service
+      if (testData.productId) {
+        try {
+          crudLog('\n📝 TEST 5: Deleting product/service...', 'info');
+          const deleteProductResponse = await fetch(`${API_BASE}/api/products-services`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: testData.productId })
+          });
+          if (deleteProductResponse.ok) {
+            crudLog('✅ Product deleted successfully', 'success');
+            updateCRUDStatus('/api/products-services', 'products', 'ok');
+            passed++;
+          } else {
+            throw new Error('Failed to delete product');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 5 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/products-services', 'products', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 5 Skipped: No product ID from TEST 3', 'warn');
+        failed++;
+      }
+
+      // TEST 6: Create Target Audience
+      if (testData.brandId) {
+        try {
+          crudLog('\n📝 TEST 6: Creating target audience...', 'info');
+          const audienceResponse = await fetch(`${API_BASE}/api/target-audiences`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              brand_id: testData.brandId,
+              name: 'Test Audience',
+              description: 'Test audience for CRUD',
+              age_range: '25-35',
+              interests: ['Technology', 'Innovation']
+            })
+          });
+          const audienceData = await audienceResponse.json();
+          if (audienceData.success && audienceData.data) {
+            testData.audienceId = audienceData.data.id;
+            crudLog(`✅ Audience created: ${testData.audienceId}`, 'success');
+            updateCRUDStatus('/api/target-audiences', 'audiences', 'ok');
+            passed++;
+          } else {
+            throw new Error(audienceData.error || 'Failed to create audience');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 6 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/target-audiences', 'audiences', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 6 Skipped: No brand ID from TEST 1', 'warn');
+        failed++;
+      }
+
+      // TEST 7: Update Target Audience
+      if (testData.audienceId) {
+        try {
+          crudLog('\n📝 TEST 7: Updating target audience...', 'info');
+          const updateAudienceResponse = await fetch(`${API_BASE}/api/target-audiences`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: testData.audienceId,
+              name: 'Test Audience - Updated',
+              age_range: '22-38'
+            })
+          });
+          const updateAudienceData = await updateAudienceResponse.json();
+          if (updateAudienceResponse.ok) {
+            crudLog('✅ Audience updated successfully', 'success');
+            updateCRUDStatus('/api/target-audiences', 'audiences', 'ok');
+            passed++;
+          } else {
+            throw new Error(updateAudienceData.error || 'Failed to update audience');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 7 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/target-audiences', 'audiences', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 7 Skipped: No audience ID from TEST 6', 'warn');
+        failed++;
+      }
+
+      // TEST 8: Delete Target Audience
+      if (testData.audienceId) {
+        try {
+          crudLog('\n📝 TEST 8: Deleting target audience...', 'info');
+          const deleteAudienceResponse = await fetch(`${API_BASE}/api/target-audiences`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: testData.audienceId })
+          });
+          if (deleteAudienceResponse.ok) {
+            crudLog('✅ Audience deleted successfully', 'success');
+            updateCRUDStatus('/api/target-audiences', 'audiences', 'ok');
+            passed++;
+          } else {
+            throw new Error('Failed to delete audience');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 8 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/target-audiences', 'audiences', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 8 Skipped: No audience ID from TEST 6', 'warn');
+        failed++;
+      }
+
+      // TEST 9: Create Campaign
+      if (testData.brandId) {
+        try {
+          crudLog('\n📝 TEST 9: Creating campaign...', 'info');
+          const campaignResponse = await fetch(`${API_BASE}/api/campaigns`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              brand_id: testData.brandId,
+              name: 'Test Campaign',
+              objective: 'Product Launch',
+              marketing_objectives: ['Brand Awareness'],
+              channels: ['Social Media'],
+              status: 'planning'
+            })
+          });
+          const campaignData = await campaignResponse.json();
+          if (campaignData.success && campaignData.data) {
+            testData.campaignId = campaignData.data.id;
+            crudLog(`✅ Campaign created: ${testData.campaignId}`, 'success');
+            updateCRUDStatus('/api/campaigns', 'campaigns', 'ok');
+            passed++;
+          } else {
+            throw new Error(campaignData.error || 'Failed to create campaign');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 9 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/campaigns', 'campaigns', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 9 Skipped: No brand ID from TEST 1', 'warn');
+        failed++;
+      }
+
+      // TEST 10: Update Campaign
+      if (testData.campaignId) {
+        try {
+          crudLog('\n📝 TEST 10: Updating campaign...', 'info');
+          const updateCampaignResponse = await fetch(`${API_BASE}/api/campaigns`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: testData.campaignId,
+              name: 'Test Campaign - Updated',
+              status: 'active'
+            })
+          });
+          const updateCampaignData = await updateCampaignResponse.json();
+          if (updateCampaignResponse.ok) {
+            crudLog('✅ Campaign updated successfully', 'success');
+            updateCRUDStatus('/api/campaigns', 'campaigns', 'ok');
+            passed++;
+          } else {
+            throw new Error(updateCampaignData.error || 'Failed to update campaign');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 10 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/campaigns', 'campaigns', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 10 Skipped: No campaign ID from TEST 9', 'warn');
+        failed++;
+      }
+
+      // TEST 11: Delete Campaign
+      if (testData.campaignId) {
+        try {
+          crudLog('\n📝 TEST 11: Deleting campaign...', 'info');
+          const deleteCampaignResponse = await fetch(`${API_BASE}/api/campaigns`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: testData.campaignId })
+          });
+          if (deleteCampaignResponse.ok) {
+            crudLog('✅ Campaign deleted successfully', 'success');
+            updateCRUDStatus('/api/campaigns', 'campaigns', 'ok');
+            passed++;
+          } else {
+            throw new Error('Failed to delete campaign');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 11 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/campaigns', 'campaigns', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 11 Skipped: No campaign ID from TEST 9', 'warn');
+        failed++;
+      }
+
+      // TEST 12: Create Competitor
+      if (testData.brandId) {
+        try {
+          crudLog('\n📝 TEST 12: Creating competitor...', 'info');
+          const competitorResponse = await fetch(`${API_BASE}/api/competitors`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              brand_id: testData.brandId,
+              name: 'Test Competitor',
+              website: 'https://competitor.com',
+              strengths: ['Strong brand'],
+              weaknesses: ['Higher pricing']
+            })
+          });
+          const competitorData = await competitorResponse.json();
+          if (competitorData.success && competitorData.data) {
+            testData.competitorId = competitorData.data.id;
+            crudLog(`✅ Competitor created: ${testData.competitorId}`, 'success');
+            updateCRUDStatus('/api/competitors', 'competitors', 'ok');
+            passed++;
+          } else {
+            throw new Error(competitorData.error || 'Failed to create competitor');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 12 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/competitors', 'competitors', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 12 Skipped: No brand ID from TEST 1', 'warn');
+        failed++;
+      }
+
+      // TEST 13: Update Competitor
+      if (testData.competitorId) {
+        try {
+          crudLog('\n📝 TEST 13: Updating competitor...', 'info');
+          const updateCompetitorResponse = await fetch(`${API_BASE}/api/competitors`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: testData.competitorId,
+              name: 'Test Competitor - Updated'
+            })
+          });
+          const updateCompetitorData = await updateCompetitorResponse.json();
+          if (updateCompetitorResponse.ok) {
+            crudLog('✅ Competitor updated successfully', 'success');
+            updateCRUDStatus('/api/competitors', 'competitors', 'ok');
+            passed++;
+          } else {
+            throw new Error(updateCompetitorData.error || 'Failed to update competitor');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 13 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/competitors', 'competitors', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 13 Skipped: No competitor ID from TEST 12', 'warn');
+        failed++;
+      }
+
+      // TEST 14: Delete Competitor
+      if (testData.competitorId) {
+        try {
+          crudLog('\n📝 TEST 14: Deleting competitor...', 'info');
+          const deleteCompetitorResponse = await fetch(`${API_BASE}/api/competitors`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: testData.competitorId })
+          });
+          if (deleteCompetitorResponse.ok) {
+            crudLog('✅ Competitor deleted successfully', 'success');
+            updateCRUDStatus('/api/competitors', 'competitors', 'ok');
+            passed++;
+          } else {
+            throw new Error('Failed to delete competitor');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 14 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/competitors', 'competitors', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 14 Skipped: No competitor ID from TEST 12', 'warn');
+        failed++;
+      }
+
+      // TEST 15: Delete Brand (Cleanup)
+      if (testData.brandId) {
+        try {
+          crudLog('\n📝 TEST 15: Deleting test brand (cleanup)...', 'info');
+          const deleteBrandResponse = await fetch(`${API_BASE}/api/brands?id=${testData.brandId}`, {
+            method: 'DELETE'
+          });
+          if (deleteBrandResponse.ok) {
+            crudLog('✅ Brand deleted successfully', 'success');
+            updateCRUDStatus('/api/brands', 'brands', 'ok');
+            passed++;
+          } else {
+            throw new Error('Failed to delete brand');
+          }
+        } catch (error) {
+          crudLog(`❌ TEST 15 Failed: ${error.message}`, 'error');
+          updateCRUDStatus('/api/brands', 'brands', 'error');
+          failed++;
+        }
+      } else {
+        crudLog('⏭️  TEST 15 Skipped: No brand ID from TEST 1', 'warn');
+        failed++;
+      }
+
+      // Final summary
+      crudLog('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', passed > failed ? 'success' : 'warn');
+      if (passed === 15) {
+        crudLog('🎉 All CRUD tests passed successfully!', 'success');
+      } else if (passed > 0) {
+        crudLog('⚠️  CRUD test suite completed with some failures', 'warn');
+      } else {
+        crudLog('❌ CRUD test suite failed - no tests passed', 'error');
+      }
+      crudLog(`📊 Total: 15 tests | ✅ Passed: ${passed} | ❌ Failed: ${failed}`, passed > failed ? 'success' : 'warn');
+
+      btn.disabled = false;
+      btn.textContent = '🔬 Run CRUD Tests';
     }
 
     // Initialize
