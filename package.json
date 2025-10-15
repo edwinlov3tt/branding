@@ -30,7 +30,6 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
-    "dotenv": "^17.2.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
     "vite": "^7.1.7"
@@ -39,6 +38,7 @@
     "@types/pg": "^8.15.5",
     "axios": "^1.12.2",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "lucide-react": "^0.544.0",
     "nanoid": "^5.1.6",
