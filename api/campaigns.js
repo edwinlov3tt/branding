@@ -57,14 +57,14 @@ module.exports = async (req, res) => {
         brand_id,
         name,
         objective,
-        target_audience,
-        messaging,
+        marketing_objectives,
+        other_objective,
+        target_audience_ids,
         channels,
-        budget,
-        timeline,
-        kpis,
-        status,
-        description
+        start_date,
+        end_date,
+        product_service_id,
+        status
       } = req.body;
 
       if (!brand_id || !name) {
@@ -77,22 +77,22 @@ module.exports = async (req, res) => {
 
       const result = await pool.query(
         `INSERT INTO campaigns (
-          brand_id, name, objective, target_audience, messaging, channels,
-          budget, timeline, kpis, status, description
+          brand_id, name, objective, marketing_objectives, other_objective,
+          target_audience_ids, channels, start_date, end_date, product_service_id, status
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *`,
         [
           brand_id,
           name,
-          objective,
-          target_audience,
-          messaging,
-          JSON.stringify(channels || []),
-          budget,
-          timeline,
-          JSON.stringify(kpis || []),
-          status || 'draft',
-          description
+          objective || null,
+          marketing_objectives || [],
+          other_objective || null,
+          target_audience_ids || [],
+          channels || [],
+          start_date || null,
+          end_date || null,
+          product_service_id || null,
+          status || 'draft'
         ]
       );
 
@@ -106,14 +106,14 @@ module.exports = async (req, res) => {
         id,
         name,
         objective,
-        target_audience,
-        messaging,
+        marketing_objectives,
+        other_objective,
+        target_audience_ids,
         channels,
-        budget,
-        timeline,
-        kpis,
-        status,
-        description
+        start_date,
+        end_date,
+        product_service_id,
+        status
       } = req.body;
 
       if (!id) {
@@ -128,14 +128,14 @@ module.exports = async (req, res) => {
         `UPDATE campaigns
          SET name = COALESCE($2, name),
              objective = COALESCE($3, objective),
-             target_audience = COALESCE($4, target_audience),
-             messaging = COALESCE($5, messaging),
-             channels = COALESCE($6, channels),
-             budget = COALESCE($7, budget),
-             timeline = COALESCE($8, timeline),
-             kpis = COALESCE($9, kpis),
-             status = COALESCE($10, status),
-             description = COALESCE($11, description),
+             marketing_objectives = COALESCE($4, marketing_objectives),
+             other_objective = COALESCE($5, other_objective),
+             target_audience_ids = COALESCE($6, target_audience_ids),
+             channels = COALESCE($7, channels),
+             start_date = COALESCE($8, start_date),
+             end_date = COALESCE($9, end_date),
+             product_service_id = COALESCE($10, product_service_id),
+             status = COALESCE($11, status),
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1
          RETURNING *`,
@@ -143,14 +143,14 @@ module.exports = async (req, res) => {
           id,
           name,
           objective,
-          target_audience,
-          messaging,
-          channels ? JSON.stringify(channels) : null,
-          budget,
-          timeline,
-          kpis ? JSON.stringify(kpis) : null,
-          status,
-          description
+          marketing_objectives || null,
+          other_objective,
+          target_audience_ids || null,
+          channels || null,
+          start_date,
+          end_date,
+          product_service_id,
+          status
         ]
       );
 
