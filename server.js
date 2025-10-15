@@ -1931,7 +1931,7 @@ app.get('/api/competitors', async (req, res) => {
 // POST - Create new competitor
 app.post('/api/competitors', async (req, res) => {
   try {
-    const { brand_id, name, description, website_url, strengths, weaknesses, market_position } = req.body;
+    const { brand_id, name, description, website, website_url, strengths, weaknesses, market_position } = req.body;
 
     if (!brand_id || !name) {
       return res.status(400).json({
@@ -1940,11 +1940,14 @@ app.post('/api/competitors', async (req, res) => {
       });
     }
 
+    // Support both 'website' and 'website_url' for backwards compatibility
+    const websiteValue = website || website_url;
+
     const result = await pool.query(
-      `INSERT INTO competitors (brand_id, name, description, website_url, strengths, weaknesses, market_position)
+      `INSERT INTO competitors (brand_id, name, description, website, strengths, weaknesses, market_position)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [brand_id, name, description, website_url, JSON.stringify(strengths || []), JSON.stringify(weaknesses || []), market_position]
+      [brand_id, name, description, websiteValue, JSON.stringify(strengths || []), JSON.stringify(weaknesses || []), market_position]
     );
 
     res.status(201).json({
@@ -1963,7 +1966,7 @@ app.post('/api/competitors', async (req, res) => {
 // PUT - Update competitor
 app.put('/api/competitors', async (req, res) => {
   try {
-    const { id, name, description, website_url, strengths, weaknesses, market_position } = req.body;
+    const { id, name, description, website, website_url, strengths, weaknesses, market_position } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -1972,17 +1975,20 @@ app.put('/api/competitors', async (req, res) => {
       });
     }
 
+    // Support both 'website' and 'website_url' for backwards compatibility
+    const websiteValue = website || website_url;
+
     const result = await pool.query(
       `UPDATE competitors
        SET name = COALESCE($1, name),
            description = COALESCE($2, description),
-           website_url = COALESCE($3, website_url),
+           website = COALESCE($3, website),
            strengths = COALESCE($4, strengths),
            weaknesses = COALESCE($5, weaknesses),
            market_position = COALESCE($6, market_position)
        WHERE id = $7
        RETURNING *`,
-      [name, description, website_url, strengths ? JSON.stringify(strengths) : null, weaknesses ? JSON.stringify(weaknesses) : null, market_position, id]
+      [name, description, websiteValue, strengths ? JSON.stringify(strengths) : null, weaknesses ? JSON.stringify(weaknesses) : null, market_position, id]
     );
 
     if (result.rows.length === 0) {
