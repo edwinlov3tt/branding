@@ -10,14 +10,22 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // PostgreSQL connection pool
-const pool = new Pool({
-  host: process.env.DATABASE_HOST,
-  port: parseInt(process.env.DATABASE_PORT || '5432'),
-  database: process.env.DATABASE_NAME,
-  user: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-  ssl: false,
-});
+// Supports both DATABASE_URL (Railway, Heroku) and individual connection params
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      }
+    : {
+        host: process.env.DATABASE_HOST,
+        port: parseInt(process.env.DATABASE_PORT || '5432'),
+        database: process.env.DATABASE_NAME,
+        user: process.env.DATABASE_USER,
+        password: process.env.DATABASE_PASSWORD,
+        ssl: false,
+      }
+);
 
 // Utility functions for slug and short ID generation
 function generateSlug(name) {
@@ -84,7 +92,7 @@ app.post('/api/extract-brand', async (req, res) => {
         'Content-Type': 'application/json',
         'User-Agent': 'Branding-App/1.0'
       },
-      timeout: 30000 // 30 second timeout
+      timeout: 65000 // 65 second timeout
     });
 
     console.log(`✅ Brand extraction completed for: ${new URL(url).hostname}`);
@@ -99,6 +107,13 @@ app.post('/api/extract-brand', async (req, res) => {
       return res.status(503).json({
         success: false,
         error: 'Brand extraction service is currently unavailable. Please try again later.'
+      });
+    }
+
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      return res.status(504).json({
+        success: false,
+        error: 'Brand extraction timed out. The website may be slow or complex. Please try again.'
       });
     }
 
@@ -535,6 +550,307 @@ app.get('/api/brand-assets', async (req, res) => {
   }
 });
 
+// Brand Profile endpoints
+// GET - Fetch brand profile by brand_id
+app.get('/api/brand-profile', async (req, res) => {
+  try {
+    const { brand_id } = req.query;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id is required'
+      });
+    }
+
+    const result = await pool.query(
+      'SELECT * FROM brand_profiles WHERE brand_id = $1',
+      [brand_id]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows[0] || null
+    });
+  } catch (error) {
+    console.error('Error fetching brand profile:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch brand profile'
+    });
+  }
+});
+
+// POST - Create or update brand profile
+app.post('/api/brand-profile', async (req, res) => {
+  try {
+    const {
+      brand_id,
+      job_id,
+      profile_status,
+      brand_name,
+      tagline,
+      story,
+      mission,
+      positioning,
+      value_props,
+      personality,
+      tone_sliders,
+      lexicon_preferred,
+      lexicon_avoid,
+      primary_audience,
+      audience_needs,
+      audience_pain_points,
+      sentence_length,
+      paragraph_style,
+      formatting_guidelines,
+      writing_avoid,
+      pages_crawled,
+      reviews_analyzed,
+      analysis_duration,
+      review_sources,
+      confidence_score,
+      raw_response
+    } = req.body;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id is required'
+      });
+    }
+
+    // Check if profile already exists
+    const existing = await pool.query(
+      'SELECT id FROM brand_profiles WHERE brand_id = $1',
+      [brand_id]
+    );
+
+    let result;
+    if (existing.rows.length > 0) {
+      // Update existing
+      result = await pool.query(
+        `UPDATE brand_profiles
+         SET job_id = COALESCE($1, job_id),
+             profile_status = COALESCE($2, profile_status),
+             brand_name = COALESCE($3, brand_name),
+             tagline = COALESCE($4, tagline),
+             story = COALESCE($5, story),
+             mission = COALESCE($6, mission),
+             positioning = COALESCE($7, positioning),
+             value_props = COALESCE($8, value_props),
+             personality = COALESCE($9, personality),
+             tone_sliders = COALESCE($10, tone_sliders),
+             lexicon_preferred = COALESCE($11, lexicon_preferred),
+             lexicon_avoid = COALESCE($12, lexicon_avoid),
+             primary_audience = COALESCE($13, primary_audience),
+             audience_needs = COALESCE($14, audience_needs),
+             audience_pain_points = COALESCE($15, audience_pain_points),
+             sentence_length = COALESCE($16, sentence_length),
+             paragraph_style = COALESCE($17, paragraph_style),
+             formatting_guidelines = COALESCE($18, formatting_guidelines),
+             writing_avoid = COALESCE($19, writing_avoid),
+             pages_crawled = COALESCE($20, pages_crawled),
+             reviews_analyzed = COALESCE($21, reviews_analyzed),
+             analysis_duration = COALESCE($22, analysis_duration),
+             review_sources = COALESCE($23, review_sources),
+             confidence_score = COALESCE($24, confidence_score),
+             raw_response = COALESCE($25, raw_response),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE brand_id = $26
+         RETURNING *`,
+        [
+          job_id, profile_status, brand_name, tagline, story, mission, positioning,
+          value_props ? JSON.stringify(value_props) : null,
+          personality ? JSON.stringify(personality) : null,
+          tone_sliders ? JSON.stringify(tone_sliders) : null,
+          lexicon_preferred ? JSON.stringify(lexicon_preferred) : null,
+          lexicon_avoid ? JSON.stringify(lexicon_avoid) : null,
+          primary_audience,
+          audience_needs ? JSON.stringify(audience_needs) : null,
+          audience_pain_points ? JSON.stringify(audience_pain_points) : null,
+          sentence_length, paragraph_style, formatting_guidelines,
+          writing_avoid ? JSON.stringify(writing_avoid) : null,
+          pages_crawled, reviews_analyzed, analysis_duration,
+          review_sources ? JSON.stringify(review_sources) : null,
+          confidence_score,
+          raw_response ? JSON.stringify(raw_response) : null,
+          brand_id
+        ]
+      );
+    } else {
+      // Insert new
+      result = await pool.query(
+        `INSERT INTO brand_profiles (
+          brand_id, job_id, profile_status, brand_name, tagline, story, mission, positioning,
+          value_props, personality, tone_sliders, lexicon_preferred, lexicon_avoid,
+          primary_audience, audience_needs, audience_pain_points, sentence_length,
+          paragraph_style, formatting_guidelines, writing_avoid, pages_crawled,
+          reviews_analyzed, analysis_duration, review_sources, confidence_score, raw_response
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+        RETURNING *`,
+        [
+          brand_id, job_id || null, profile_status || 'completed', brand_name || null,
+          tagline || null, story || null, mission || null, positioning || null,
+          JSON.stringify(value_props || []),
+          JSON.stringify(personality || []),
+          JSON.stringify(tone_sliders || {}),
+          JSON.stringify(lexicon_preferred || []),
+          JSON.stringify(lexicon_avoid || []),
+          primary_audience || null,
+          JSON.stringify(audience_needs || []),
+          JSON.stringify(audience_pain_points || []),
+          sentence_length || null, paragraph_style || null,
+          formatting_guidelines || null,
+          JSON.stringify(writing_avoid || []),
+          pages_crawled || 0, reviews_analyzed || 0, analysis_duration || null,
+          JSON.stringify(review_sources || {}),
+          confidence_score || null,
+          JSON.stringify(raw_response || null)
+        ]
+      );
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error saving brand profile:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save brand profile'
+    });
+  }
+});
+
+// Brand Images endpoints
+// GET - Fetch brand images by brand_id
+app.get('/api/brand-images', async (req, res) => {
+  try {
+    const { brand_id } = req.query;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id is required'
+      });
+    }
+
+    const result = await pool.query(
+      'SELECT * FROM brand_images WHERE brand_id = $1 ORDER BY relevance_score DESC, created_at DESC',
+      [brand_id]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching brand images:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch brand images'
+    });
+  }
+});
+
+// POST - Save brand images (upsert by brand_id + page_url)
+// Supports both single page and bulk save (array of pages)
+app.post('/api/brand-images', async (req, res) => {
+  try {
+    const { brand_id, pages, page_url, page_title, page_category, relevance_score, images, images_count } = req.body;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id is required'
+      });
+    }
+
+    // Handle bulk save (array of pages)
+    if (pages && Array.isArray(pages)) {
+      const results = [];
+
+      for (const page of pages) {
+        const result = await pool.query(
+          `INSERT INTO brand_images (brand_id, page_url, page_title, page_category, relevance_score, images, images_count)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (brand_id, page_url)
+           DO UPDATE SET
+             page_title = EXCLUDED.page_title,
+             page_category = EXCLUDED.page_category,
+             relevance_score = EXCLUDED.relevance_score,
+             images = EXCLUDED.images,
+             images_count = EXCLUDED.images_count,
+             last_fetched_at = CURRENT_TIMESTAMP,
+             updated_at = CURRENT_TIMESTAMP
+           RETURNING *`,
+          [
+            brand_id,
+            page.page_url,
+            page.page_title || null,
+            page.page_category || null,
+            page.relevance_score || null,
+            JSON.stringify(page.images || []),
+            page.images_count || (page.images?.length || 0)
+          ]
+        );
+        results.push(result.rows[0]);
+      }
+
+      return res.json({
+        success: true,
+        data: results,
+        count: results.length
+      });
+    }
+
+    // Handle single page save
+    if (!page_url) {
+      return res.status(400).json({
+        success: false,
+        error: 'page_url is required for single page save, or provide pages array for bulk save'
+      });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO brand_images (brand_id, page_url, page_title, page_category, relevance_score, images, images_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (brand_id, page_url)
+       DO UPDATE SET
+         page_title = EXCLUDED.page_title,
+         page_category = EXCLUDED.page_category,
+         relevance_score = EXCLUDED.relevance_score,
+         images = EXCLUDED.images,
+         images_count = EXCLUDED.images_count,
+         last_fetched_at = CURRENT_TIMESTAMP,
+         updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [
+        brand_id,
+        page_url,
+        page_title || null,
+        page_category || null,
+        relevance_score || null,
+        JSON.stringify(images || []),
+        images_count || (images?.length || 0)
+      ]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error saving brand images:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save brand images'
+    });
+  }
+});
+
 // Ad Inspirations endpoints
 // GET all curated ads (platform-wide) or search cached ads
 app.get('/api/ad-inspirations/curated', async (req, res) => {
@@ -939,9 +1255,21 @@ app.get('/api/products-services', async (req, res) => {
       [brand_id]
     );
 
+    // Fetch offers for each product
+    const productsWithOffers = await Promise.all(result.rows.map(async (product) => {
+      const offersResult = await pool.query(
+        'SELECT id, offer_text, expiration_date FROM product_offers WHERE product_service_id = $1 ORDER BY created_at ASC',
+        [product.id]
+      );
+      return {
+        ...product,
+        offers: offersResult.rows
+      };
+    }));
+
     res.json({
       success: true,
-      data: result.rows
+      data: productsWithOffers
     });
   } catch (error) {
     console.error('Error fetching products/services:', error);
@@ -955,7 +1283,7 @@ app.get('/api/products-services', async (req, res) => {
 // POST - Create new product/service
 app.post('/api/products-services', async (req, res) => {
   try {
-    const { brand_id, name, category, description, price, features, image_url } = req.body;
+    const { brand_id, name, category, description, price, cturl, features, offers, image_url, image_urls, default_image_url } = req.body;
 
     if (!brand_id || !name || !category) {
       return res.status(400).json({
@@ -964,16 +1292,42 @@ app.post('/api/products-services', async (req, res) => {
       });
     }
 
+    // Support both old (image_url) and new (image_urls/default_image_url) formats
+    const imageUrlsArray = image_urls || (image_url ? [image_url] : []);
+    const defaultImage = default_image_url || image_url || null;
+
     const result = await pool.query(
-      `INSERT INTO products_services (brand_id, name, category, description, price, features, image_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO products_services (brand_id, name, category, description, price, cturl, features, image_url, image_urls, default_image_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [brand_id, name, category, description, price, JSON.stringify(features || []), image_url]
+      [brand_id, name, category, description, price, cturl, JSON.stringify(features || []), image_url, imageUrlsArray, defaultImage]
+    );
+
+    const product = result.rows[0];
+
+    // Insert offers if provided
+    if (offers && offers.length > 0) {
+      for (const offer of offers) {
+        await pool.query(
+          `INSERT INTO product_offers (product_service_id, offer_text, expiration_date)
+           VALUES ($1, $2, $3)`,
+          [product.id, offer.offer_text, offer.expiration_date || null]
+        );
+      }
+    }
+
+    // Fetch the complete product with offers
+    const offersResult = await pool.query(
+      'SELECT id, offer_text, expiration_date FROM product_offers WHERE product_service_id = $1 ORDER BY created_at ASC',
+      [product.id]
     );
 
     res.status(201).json({
       success: true,
-      data: result.rows[0]
+      data: {
+        ...product,
+        offers: offersResult.rows
+      }
     });
   } catch (error) {
     console.error('Error creating product/service:', error);
@@ -987,7 +1341,7 @@ app.post('/api/products-services', async (req, res) => {
 // PUT - Update product/service
 app.put('/api/products-services', async (req, res) => {
   try {
-    const { id, name, category, description, price, features, image_url } = req.body;
+    const { id, name, category, description, price, cturl, features, offers, image_url, image_urls, default_image_url } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -1002,11 +1356,14 @@ app.put('/api/products-services', async (req, res) => {
            category = COALESCE($2, category),
            description = COALESCE($3, description),
            price = COALESCE($4, price),
-           features = COALESCE($5, features),
-           image_url = COALESCE($6, image_url)
-       WHERE id = $7
+           cturl = COALESCE($5, cturl),
+           features = COALESCE($6, features),
+           image_url = COALESCE($7, image_url),
+           image_urls = COALESCE($8, image_urls),
+           default_image_url = COALESCE($9, default_image_url)
+       WHERE id = $10
        RETURNING *`,
-      [name, category, description, price, features ? JSON.stringify(features) : null, image_url, id]
+      [name, category, description, price, cturl, features ? JSON.stringify(features) : null, image_url, image_urls, default_image_url, id]
     );
 
     if (result.rows.length === 0) {
@@ -1016,9 +1373,38 @@ app.put('/api/products-services', async (req, res) => {
       });
     }
 
+    // Handle offers update if provided
+    if (offers !== undefined) {
+      // Delete existing offers
+      await pool.query(
+        'DELETE FROM product_offers WHERE product_service_id = $1',
+        [id]
+      );
+
+      // Insert new offers
+      if (offers.length > 0) {
+        for (const offer of offers) {
+          await pool.query(
+            `INSERT INTO product_offers (product_service_id, offer_text, expiration_date)
+             VALUES ($1, $2, $3)`,
+            [id, offer.offer_text, offer.expiration_date || null]
+          );
+        }
+      }
+    }
+
+    // Fetch the complete product with offers
+    const offersResult = await pool.query(
+      'SELECT id, offer_text, expiration_date FROM product_offers WHERE product_service_id = $1 ORDER BY created_at ASC',
+      [id]
+    );
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: {
+        ...result.rows[0],
+        offers: offersResult.rows
+      }
     });
   } catch (error) {
     console.error('Error updating product/service:', error);
@@ -1214,26 +1600,79 @@ app.delete('/api/competitors', async (req, res) => {
 
 // ===== TARGET AUDIENCES CRUD =====
 
-// GET - Get all target audiences for a brand
+// GET - Get all target audiences for a brand OR a single audience by ID
 app.get('/api/target-audiences', async (req, res) => {
   try {
-    const { brand_id } = req.query;
+    const { brand_id, id } = req.query;
+    console.log('📋 Target Audiences GET - Query params:', { brand_id, id });
 
-    if (!brand_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'brand_id is required'
+    // If fetching by ID (for editing)
+    if (id) {
+      console.log(`🔍 Fetching single audience with id: ${id}`);
+      const result = await pool.query(
+        'SELECT * FROM target_audiences WHERE id = $1',
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Target audience not found'
+        });
+      }
+
+      const row = result.rows[0];
+      console.log(`✅ Found audience: ${row.name}`);
+
+      // Return single audience (no transformation needed for edit page)
+      return res.json({
+        success: true,
+        data: {
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          demographics: row.demographics,
+          interests: row.interests || [],
+          pain_points: row.pain_points || [],
+          goals: row.goals || [],
+          budget_range: row.budget_range || '',
+          channels: row.channels || []
+        }
       });
     }
 
+    // If fetching all audiences for a brand
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id or id is required'
+      });
+    }
+
+    console.log(`🔍 Fetching all audiences for brand: ${brand_id}`);
     const result = await pool.query(
       'SELECT * FROM target_audiences WHERE brand_id = $1 ORDER BY created_at DESC',
       [brand_id]
     );
 
+    console.log(`✅ Found ${result.rows.length} audience(s)`);
+
+    // Transform snake_case to camelCase for frontend
+    const transformedData = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      demographics: row.demographics,
+      interests: row.interests || [],
+      painPoints: row.pain_points || [],
+      goals: row.goals || [],
+      budgetRange: row.budget_range || '',
+      channels: row.channels || []
+    }));
+
     res.json({
       success: true,
-      data: result.rows
+      data: transformedData
     });
   } catch (error) {
     console.error('Error fetching target audiences:', error);
@@ -1247,7 +1686,25 @@ app.get('/api/target-audiences', async (req, res) => {
 // POST - Create new target audience
 app.post('/api/target-audiences', async (req, res) => {
   try {
-    const { brand_id, name, description, demographics, psychographics } = req.body;
+    const {
+      brand_id,
+      name,
+      description,
+      age_range,
+      gender,
+      location,
+      income_level,
+      education,
+      occupation,
+      interests,
+      values,
+      lifestyle,
+      pain_points,
+      goals,
+      buying_behavior,
+      budget_range,
+      channels
+    } = req.body;
 
     if (!brand_id || !name) {
       return res.status(400).json({
@@ -1256,16 +1713,51 @@ app.post('/api/target-audiences', async (req, res) => {
       });
     }
 
+    // Build demographics text from individual fields
+    const demographicsText = [
+      age_range && `Age: ${age_range}`,
+      gender && `Gender: ${gender}`,
+      location && `Location: ${location}`,
+      income_level && `Income: ${income_level}`,
+      education && `Education: ${education}`,
+      occupation && `Occupation: ${occupation}`,
+      lifestyle && `Lifestyle: ${lifestyle}`,
+      buying_behavior && `Buying Behavior: ${buying_behavior}`
+    ].filter(Boolean).join(' | ');
+
     const result = await pool.query(
-      `INSERT INTO target_audiences (brand_id, name, description, demographics, psychographics)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO target_audiences (brand_id, name, description, demographics, interests, pain_points, goals, budget_range, channels)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [brand_id, name, description, JSON.stringify(demographics || {}), JSON.stringify(psychographics || {})]
+      [
+        brand_id,
+        name,
+        description || null,
+        demographicsText || null,
+        JSON.stringify(interests || []),
+        JSON.stringify(pain_points || []),
+        JSON.stringify(goals || []),
+        budget_range || null,
+        JSON.stringify(channels || [])
+      ]
     );
+
+    // Transform response to camelCase
+    const transformedData = {
+      id: result.rows[0].id,
+      name: result.rows[0].name,
+      description: result.rows[0].description,
+      demographics: result.rows[0].demographics,
+      interests: result.rows[0].interests || [],
+      painPoints: result.rows[0].pain_points || [],
+      goals: result.rows[0].goals || [],
+      budgetRange: result.rows[0].budget_range || '',
+      channels: result.rows[0].channels || []
+    };
 
     res.status(201).json({
       success: true,
-      data: result.rows[0]
+      data: transformedData
     });
   } catch (error) {
     console.error('Error creating target audience:', error);
@@ -1279,7 +1771,25 @@ app.post('/api/target-audiences', async (req, res) => {
 // PUT - Update target audience
 app.put('/api/target-audiences', async (req, res) => {
   try {
-    const { id, name, description, demographics, psychographics } = req.body;
+    const {
+      id,
+      name,
+      description,
+      age_range,
+      gender,
+      location,
+      income_level,
+      education,
+      occupation,
+      interests,
+      values,
+      lifestyle,
+      pain_points,
+      goals,
+      buying_behavior,
+      budget_range,
+      channels
+    } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -1288,15 +1798,44 @@ app.put('/api/target-audiences', async (req, res) => {
       });
     }
 
+    // Build demographics text from individual fields if provided
+    let demographicsText = null;
+    if (age_range || gender || location || income_level || education || occupation || lifestyle || buying_behavior) {
+      demographicsText = [
+        age_range && `Age: ${age_range}`,
+        gender && `Gender: ${gender}`,
+        location && `Location: ${location}`,
+        income_level && `Income: ${income_level}`,
+        education && `Education: ${education}`,
+        occupation && `Occupation: ${occupation}`,
+        lifestyle && `Lifestyle: ${lifestyle}`,
+        buying_behavior && `Buying Behavior: ${buying_behavior}`
+      ].filter(Boolean).join(' | ');
+    }
+
     const result = await pool.query(
       `UPDATE target_audiences
        SET name = COALESCE($1, name),
            description = COALESCE($2, description),
            demographics = COALESCE($3, demographics),
-           psychographics = COALESCE($4, psychographics)
-       WHERE id = $5
+           interests = COALESCE($4, interests),
+           pain_points = COALESCE($5, pain_points),
+           goals = COALESCE($6, goals),
+           budget_range = COALESCE($7, budget_range),
+           channels = COALESCE($8, channels)
+       WHERE id = $9
        RETURNING *`,
-      [name, description, demographics ? JSON.stringify(demographics) : null, psychographics ? JSON.stringify(psychographics) : null, id]
+      [
+        name,
+        description,
+        demographicsText,
+        interests ? JSON.stringify(interests) : null,
+        pain_points ? JSON.stringify(pain_points) : null,
+        goals ? JSON.stringify(goals) : null,
+        budget_range,
+        channels ? JSON.stringify(channels) : null,
+        id
+      ]
     );
 
     if (result.rows.length === 0) {
@@ -1306,9 +1845,22 @@ app.put('/api/target-audiences', async (req, res) => {
       });
     }
 
+    // Transform response to camelCase
+    const transformedData = {
+      id: result.rows[0].id,
+      name: result.rows[0].name,
+      description: result.rows[0].description,
+      demographics: result.rows[0].demographics,
+      interests: result.rows[0].interests || [],
+      painPoints: result.rows[0].pain_points || [],
+      goals: result.rows[0].goals || [],
+      budgetRange: result.rows[0].budget_range || '',
+      channels: result.rows[0].channels || []
+    };
+
     res.json({
       success: true,
-      data: result.rows[0]
+      data: transformedData
     });
   } catch (error) {
     console.error('Error updating target audience:', error);
@@ -1391,7 +1943,7 @@ app.get('/api/campaigns', async (req, res) => {
 // POST - Create new campaign
 app.post('/api/campaigns', async (req, res) => {
   try {
-    const { brand_id, name, objective, target_audience_ids, start_date, end_date, budget, channels, status } = req.body;
+    const { brand_id, name, objective, product_service_id, marketing_objectives, other_objective, target_audience_ids, start_date, end_date, channels, status } = req.body;
 
     if (!brand_id || !name || !objective) {
       return res.status(400).json({
@@ -1401,10 +1953,10 @@ app.post('/api/campaigns', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO campaigns (brand_id, name, objective, target_audience_ids, start_date, end_date, budget, channels, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO campaigns (brand_id, name, objective, product_service_id, marketing_objectives, other_objective, target_audience_ids, start_date, end_date, channels, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [brand_id, name, objective, JSON.stringify(target_audience_ids || []), start_date, end_date, budget, JSON.stringify(channels || []), status || 'draft']
+      [brand_id, name, objective, product_service_id, JSON.stringify(marketing_objectives || []), other_objective, JSON.stringify(target_audience_ids || []), start_date, end_date, JSON.stringify(channels || []), status || 'draft']
     );
 
     res.status(201).json({
@@ -1423,7 +1975,7 @@ app.post('/api/campaigns', async (req, res) => {
 // PUT - Update campaign
 app.put('/api/campaigns', async (req, res) => {
   try {
-    const { id, name, objective, target_audience_ids, start_date, end_date, budget, channels, status } = req.body;
+    const { id, name, objective, product_service_id, marketing_objectives, other_objective, target_audience_ids, start_date, end_date, channels, status } = req.body;
 
     if (!id) {
       return res.status(400).json({
@@ -1436,15 +1988,17 @@ app.put('/api/campaigns', async (req, res) => {
       `UPDATE campaigns
        SET name = COALESCE($1, name),
            objective = COALESCE($2, objective),
-           target_audience_ids = COALESCE($3, target_audience_ids),
-           start_date = COALESCE($4, start_date),
-           end_date = COALESCE($5, end_date),
-           budget = COALESCE($6, budget),
-           channels = COALESCE($7, channels),
-           status = COALESCE($8, status)
-       WHERE id = $9
+           product_service_id = COALESCE($3, product_service_id),
+           marketing_objectives = COALESCE($4, marketing_objectives),
+           other_objective = COALESCE($5, other_objective),
+           target_audience_ids = COALESCE($6, target_audience_ids),
+           start_date = COALESCE($7, start_date),
+           end_date = COALESCE($8, end_date),
+           channels = COALESCE($9, channels),
+           status = COALESCE($10, status)
+       WHERE id = $11
        RETURNING *`,
-      [name, objective, target_audience_ids ? JSON.stringify(target_audience_ids) : null, start_date, end_date, budget, channels ? JSON.stringify(channels) : null, status, id]
+      [name, objective, product_service_id, marketing_objectives ? JSON.stringify(marketing_objectives) : null, other_objective, target_audience_ids ? JSON.stringify(target_audience_ids) : null, start_date, end_date, channels ? JSON.stringify(channels) : null, status, id]
     );
 
     if (result.rows.length === 0) {
@@ -1604,6 +2158,117 @@ app.post('/api/brand-intelligence', async (req, res) => {
 });
 
 // ============================================
+// BRAND SETTINGS ENDPOINTS
+// ============================================
+
+// GET - Get brand settings for a brand
+app.get('/api/brand-settings', async (req, res) => {
+  try {
+    const { brand_id } = req.query;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id is required'
+      });
+    }
+
+    const result = await pool.query(
+      'SELECT * FROM brand_settings WHERE brand_id = $1',
+      [brand_id]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows[0] || null
+    });
+  } catch (error) {
+    console.error('Error fetching brand settings:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch brand settings'
+    });
+  }
+});
+
+// POST/PUT - Save or update brand settings
+app.post('/api/brand-settings', async (req, res) => {
+  try {
+    const {
+      brand_id,
+      creative_guidelines,
+      ad_copy_guidelines,
+      brand_guidelines,
+      emoji_usage,
+      tone_preferences
+    } = req.body;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id is required'
+      });
+    }
+
+    // Check if settings already exist
+    const existing = await pool.query(
+      'SELECT id FROM brand_settings WHERE brand_id = $1',
+      [brand_id]
+    );
+
+    let result;
+    if (existing.rows.length > 0) {
+      // Update existing
+      result = await pool.query(
+        `UPDATE brand_settings
+         SET creative_guidelines = COALESCE($1, creative_guidelines),
+             ad_copy_guidelines = COALESCE($2, ad_copy_guidelines),
+             brand_guidelines = COALESCE($3, brand_guidelines),
+             emoji_usage = COALESCE($4, emoji_usage),
+             tone_preferences = COALESCE($5, tone_preferences),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE brand_id = $6
+         RETURNING *`,
+        [
+          creative_guidelines,
+          ad_copy_guidelines,
+          brand_guidelines,
+          emoji_usage,
+          tone_preferences ? JSON.stringify(tone_preferences) : null,
+          brand_id
+        ]
+      );
+    } else {
+      // Insert new
+      result = await pool.query(
+        `INSERT INTO brand_settings (brand_id, creative_guidelines, ad_copy_guidelines, brand_guidelines, emoji_usage, tone_preferences)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [
+          brand_id,
+          creative_guidelines || null,
+          ad_copy_guidelines || null,
+          brand_guidelines || null,
+          emoji_usage || 'auto',
+          JSON.stringify(tone_preferences || {})
+        ]
+      );
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error saving brand settings:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save brand settings'
+    });
+  }
+});
+
+// ============================================
 // COMPETITOR ANALYSES ENDPOINTS
 // ============================================
 
@@ -1689,7 +2354,9 @@ app.post('/api/competitor-analyses', async (req, res) => {
       recommendations,
       key_findings,
       analysis_model,
-      analysis_confidence
+      analysis_confidence,
+      analysis_start_date,
+      analysis_end_date
     } = req.body;
 
     if (!brand_id || !competitor_name) {
@@ -1705,8 +2372,9 @@ app.post('/api/competitor-analyses', async (req, res) => {
         total_ads_analyzed, ad_ids, ads_data, overview, positioning,
         creative_strategy, messaging_analysis, visual_design_elements,
         target_audience_insights, performance_indicators, recommendations,
-        key_findings, analysis_model, analysis_confidence
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+        key_findings, analysis_model, analysis_confidence,
+        analysis_start_date, analysis_end_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *`,
       [
         brand_id, competitor_id, competitor_name, competitor_website, facebook_page,
@@ -1722,7 +2390,9 @@ app.post('/api/competitor-analyses', async (req, res) => {
         JSON.stringify(recommendations || []),
         JSON.stringify(key_findings || []),
         analysis_model,
-        analysis_confidence
+        analysis_confidence,
+        analysis_start_date,
+        analysis_end_date
       ]
     );
 
@@ -1835,7 +2505,7 @@ Extract and return ONLY a valid JSON object with this structure:
 Be concise and extract only what's clearly present in the data. Return ONLY the JSON, no other text.`;
 
     const claudeResponse = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-3-7-sonnet-20250219',
       max_tokens: 2000,
       messages: [{
         role: 'user',
@@ -1899,7 +2569,7 @@ Be concise and extract only what's clearly present in the data. Return ONLY the 
 // POST - Generate target audiences using AI
 app.post('/api/ai/generate-audiences', async (req, res) => {
   try {
-    const { brand_id } = req.body;
+    const { brand_id, audience_description } = req.body;
 
     if (!brand_id) {
       return res.status(400).json({
@@ -1909,21 +2579,40 @@ app.post('/api/ai/generate-audiences', async (req, res) => {
     }
 
     console.log(`🤖 Generating target audiences for brand: ${brand_id}`);
+    if (audience_description) {
+      console.log(`📝 User description: ${audience_description}`);
+    }
+
+    // Get brand data
+    const brandResult = await pool.query('SELECT * FROM brands WHERE id = $1', [brand_id]);
+    if (brandResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Brand not found'
+      });
+    }
+    const brand = brandResult.rows[0];
 
     // Get brand intelligence
     const intelligenceResult = await pool.query(
       'SELECT * FROM brand_intelligence WHERE brand_id = $1 ORDER BY created_at DESC LIMIT 1',
       [brand_id]
     );
+    const intelligence = intelligenceResult.rows[0] || null;
 
-    if (intelligenceResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Brand intelligence not found. Please generate brand intelligence first.'
-      });
-    }
+    // Get products/services
+    const productsResult = await pool.query(
+      'SELECT * FROM products_services WHERE brand_id = $1',
+      [brand_id]
+    );
+    const products = productsResult.rows;
 
-    const intelligence = intelligenceResult.rows[0];
+    // Get competitor analyses
+    const competitorsResult = await pool.query(
+      'SELECT competitor_name, overview, positioning FROM competitor_analyses WHERE brand_id = $1 ORDER BY created_at DESC LIMIT 3',
+      [brand_id]
+    );
+    const competitors = competitorsResult.rows;
 
     const claudeApiKey = process.env.VITE_CLAUDE_API_KEY;
     if (!claudeApiKey) {
@@ -1933,43 +2622,60 @@ app.post('/api/ai/generate-audiences', async (req, res) => {
       });
     }
 
-    const prompt = `Based on this brand intelligence, generate 3-5 detailed target audience personas:
+    // Build context from available data
+    let contextParts = [];
 
-Brand: ${intelligence.brand_name}
-Industry: ${intelligence.industry}
-Mission: ${intelligence.mission}
-Values: ${JSON.stringify(intelligence.values)}
-Target Market: ${intelligence.target_market}
-UVP: ${intelligence.unique_value_proposition}
+    contextParts.push(`Brand: ${brand.name}`);
 
-Generate and return ONLY a valid JSON array of audience personas:
+    if (intelligence) {
+      contextParts.push(`Industry: ${intelligence.industry || 'N/A'}`);
+      contextParts.push(`Mission: ${intelligence.mission || 'N/A'}`);
+      contextParts.push(`Values: ${JSON.stringify(intelligence.values) || 'N/A'}`);
+      contextParts.push(`Target Market: ${intelligence.target_market || 'N/A'}`);
+      contextParts.push(`UVP: ${intelligence.unique_value_proposition || 'N/A'}`);
+    }
+
+    if (products.length > 0) {
+      contextParts.push(`Products/Services: ${products.map(p => p.name).join(', ')}`);
+    }
+
+    if (competitors.length > 0) {
+      contextParts.push(`Competitor Insights: ${competitors.map(c => `${c.competitor_name}: ${c.positioning || c.overview}`).join('; ')}`);
+    }
+
+    if (audience_description) {
+      contextParts.push(`User's Audience Description: ${audience_description}`);
+    }
+
+    const context = contextParts.join('\n');
+
+    const prompt = `Based on this brand context, generate exactly 3 detailed target audience personas:
+
+${context}
+
+Generate and return ONLY a valid JSON array with exactly 3 audience personas. Each persona must have this exact structure:
 [
   {
     "name": "Persona Name (e.g., 'Tech-Savvy Millennials')",
-    "description": "Detailed description",
-    "demographics": {
-      "age_range": "25-35",
-      "gender": "All",
-      "location": "Urban areas",
-      "income_level": "$50k-$100k",
-      "education": "Bachelor's degree or higher",
-      "occupation": "Professional/Manager"
-    },
-    "psychographics": {
-      "interests": "List of interests",
-      "values": "What they value",
-      "lifestyle": "Lifestyle description",
-      "pain_points": "Key problems they face",
-      "goals": "What they want to achieve",
-      "buying_behavior": "How they make decisions"
-    }
+    "age_range": "25-35",
+    "gender": "All",
+    "location": "Urban areas",
+    "income_level": "$50k-$100k",
+    "education": "Bachelor's degree or higher",
+    "occupation": "Professional/Manager",
+    "interests": ["interest1", "interest2", "interest3"],
+    "values": ["value1", "value2"],
+    "lifestyle": "Lifestyle description",
+    "pain_points": ["pain1", "pain2"],
+    "goals": ["goal1", "goal2"],
+    "buying_behavior": "How they make decisions"
   }
 ]
 
-Return ONLY the JSON array, no other text.`;
+IMPORTANT: Return ONLY the JSON array, no markdown, no explanations, no other text.`;
 
     const claudeResponse = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-3-7-sonnet-20250219',
       max_tokens: 3000,
       messages: [{
         role: 'user',
@@ -1983,32 +2689,21 @@ Return ONLY the JSON array, no other text.`;
       }
     });
 
-    const aiResponse = claudeResponse.data.content[0].text;
-    const audiences = JSON.parse(aiResponse);
+    let aiResponse = claudeResponse.data.content[0].text.trim();
 
-    // Save audiences to database
-    const savedAudiences = [];
-    for (const audience of audiences) {
-      const result = await pool.query(
-        `INSERT INTO target_audiences (brand_id, name, description, demographics, psychographics)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING *`,
-        [
-          brand_id,
-          audience.name,
-          audience.description,
-          JSON.stringify(audience.demographics),
-          JSON.stringify(audience.psychographics)
-        ]
-      );
-      savedAudiences.push(result.rows[0]);
+    // Remove markdown code blocks if present
+    if (aiResponse.startsWith('```')) {
+      aiResponse = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     }
 
-    console.log(`✅ Generated ${savedAudiences.length} target audiences`);
+    const audiences = JSON.parse(aiResponse);
 
+    console.log(`✅ Generated ${audiences.length} target audiences`);
+
+    // Return audiences WITHOUT saving to DB (frontend will handle saving selected ones)
     res.json({
       success: true,
-      data: savedAudiences
+      data: audiences
     });
   } catch (error) {
     console.error('Error generating audiences:', error);
@@ -2022,12 +2717,31 @@ Return ONLY the JSON array, no other text.`;
 // POST - Analyze competitor with Foreplay ads + AI
 app.post('/api/ai/analyze-competitor', async (req, res) => {
   try {
-    const { brand_id, competitor_name, facebook_page } = req.body;
+    // Accept both parameter name formats for compatibility
+    const {
+      brand_id,
+      competitor_name,
+      facebook_page,
+      start_date,
+      end_date,
+      analysis_start_date,
+      analysis_end_date
+    } = req.body;
+
+    const startDate = analysis_start_date || start_date;
+    const endDate = analysis_end_date || end_date;
 
     if (!brand_id || !competitor_name) {
       return res.status(400).json({
         success: false,
         error: 'brand_id and competitor_name are required'
+      });
+    }
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'start_date/analysis_start_date and end_date/analysis_end_date are required'
       });
     }
 
@@ -2042,14 +2756,18 @@ app.post('/api/ai/analyze-competitor', async (req, res) => {
     }
 
     // Search for competitor ads
-    console.log('🔍 Fetching competitor ads from Foreplay...');
+    // Use facebook_page for more accurate results, fallback to competitor_name
+    const searchQuery = facebook_page || competitor_name;
+    console.log(`🔍 Fetching competitor ads from Foreplay (query: "${searchQuery}")...`);
+
     const searchResponse = await axios.get('https://public.api.foreplay.co/api/discovery/ads', {
       headers: {
         'Authorization': foreplayApiKey
       },
       params: {
-        query: competitor_name,
-        limit: 20,
+        query: searchQuery,
+        advertiser: facebook_page || undefined, // Try advertiser filter if FB page provided
+        limit: 50, // Increased limit for better results
         order: 'most_relevant',
         geo_location: 'US',
         languages: 'English'
@@ -2060,13 +2778,29 @@ app.post('/api/ai/analyze-competitor', async (req, res) => {
     const ads = searchResponse.data?.data || [];
 
     if (ads.length === 0) {
-      return res.status(404).json({
+      return res.status(200).json({
         success: false,
-        error: 'No ads found for this competitor'
+        error: 'No ads found for this competitor in Foreplay database. Try using a broader search term or different competitor name.'
       });
     }
 
-    console.log(`✅ Found ${ads.length} ads, analyzing with AI...`);
+    // Filter ads by date range
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    const filteredAds = ads.filter(ad => {
+      if (!ad.started_running) return false;
+      const adDate = new Date(ad.started_running);
+      return adDate >= startDateObj && adDate <= endDateObj;
+    });
+
+    if (filteredAds.length === 0) {
+      return res.status(200).json({
+        success: false,
+        error: 'No ads were running during the selected time period. Try expanding the date range or using "All Time".'
+      });
+    }
+
+    console.log(`✅ Found ${filteredAds.length} ads in date range, analyzing with AI...`);
 
     // Use Claude to analyze the ads
     const claudeApiKey = process.env.VITE_CLAUDE_API_KEY;
@@ -2077,10 +2811,10 @@ app.post('/api/ai/analyze-competitor', async (req, res) => {
       });
     }
 
-    const prompt = `Analyze these ${ads.length} competitor ads and provide a comprehensive analysis:
+    const prompt = `Analyze these ${filteredAds.length} competitor ads and provide a comprehensive analysis:
 
 Competitor: ${competitor_name}
-Ads Data: ${JSON.stringify(ads.slice(0, 20), null, 2)}
+Ads Data: ${JSON.stringify(filteredAds.slice(0, 20), null, 2)}
 
 Provide a detailed analysis in JSON format matching this structure:
 {
@@ -2121,7 +2855,7 @@ Provide a detailed analysis in JSON format matching this structure:
 Return ONLY the JSON object, no other text.`;
 
     const claudeResponse = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-3-7-sonnet-20250219',
       max_tokens: 4000,
       messages: [{
         role: 'user',
@@ -2136,7 +2870,18 @@ Return ONLY the JSON object, no other text.`;
     });
 
     const aiResponse = claudeResponse.data.content[0].text;
-    const analysis = JSON.parse(aiResponse);
+
+    // Remove markdown code fences if present
+    let cleanedText = aiResponse.trim();
+    cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
+
+    // Extract JSON object
+    const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No valid JSON found in AI response');
+    }
+
+    const analysis = JSON.parse(jsonMatch[0]);
 
     // Save analysis to database
     const result = await pool.query(
@@ -2144,16 +2889,16 @@ Return ONLY the JSON object, no other text.`;
         brand_id, competitor_name, facebook_page, total_ads_analyzed, ad_ids, ads_data,
         overview, positioning, creative_strategy, messaging_analysis, visual_design_elements,
         target_audience_insights, performance_indicators, recommendations, key_findings,
-        analysis_model, analysis_confidence
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        analysis_model, analysis_confidence, analysis_start_date, analysis_end_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       RETURNING *`,
       [
         brand_id,
         competitor_name,
         facebook_page,
-        ads.length,
-        JSON.stringify(ads.map(ad => ad.id)),
-        JSON.stringify(ads),
+        filteredAds.length,
+        JSON.stringify(filteredAds.map(ad => ad.id)),
+        JSON.stringify(filteredAds),
         analysis.overview,
         analysis.positioning,
         JSON.stringify(analysis.creative_strategy),
@@ -2163,8 +2908,10 @@ Return ONLY the JSON object, no other text.`;
         JSON.stringify(analysis.performance_indicators),
         JSON.stringify(analysis.recommendations),
         JSON.stringify(analysis.key_findings),
-        'claude-3-5-sonnet-20241022',
-        0.85
+        'claude-3-7-sonnet-20250219',
+        0.85,
+        startDate,
+        endDate
       ]
     );
 
@@ -2242,7 +2989,7 @@ Generate and return ONLY a valid JSON array of products/services:
 Return ONLY the JSON array, no other text.`;
 
     const claudeResponse = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-3-7-sonnet-20250219',
       max_tokens: 2000,
       messages: [{
         role: 'user',
@@ -2361,7 +3108,7 @@ Generate and return ONLY a valid JSON array of campaign ideas:
 Return ONLY the JSON array, no other text.`;
 
     const claudeResponse = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-3-7-sonnet-20250219',
       max_tokens: 2000,
       messages: [{
         role: 'user',
@@ -2415,6 +3162,593 @@ Return ONLY the JSON array, no other text.`;
   }
 });
 
+// ============================================
+// AD COPY GENERATION ENDPOINTS
+// ============================================
+
+// POST - Generate ad copy for a specific channel
+app.post('/api/ai/generate-ad-copy', async (req, res) => {
+  try {
+    const {
+      brand_id,
+      campaign_id,
+      channel,
+      product_service_id,
+      target_audience_ids,
+      marketing_objectives
+    } = req.body;
+
+    if (!brand_id || !campaign_id || !channel) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id, campaign_id, and channel are required'
+      });
+    }
+
+    console.log(`🤖 Generating ad copy for channel: ${channel}`);
+
+    // Gather all context
+    const context = {};
+
+    // 1. Get brand intelligence
+    const intelligenceResult = await pool.query(
+      'SELECT * FROM brand_intelligence WHERE brand_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [brand_id]
+    );
+    context.intelligence = intelligenceResult.rows[0] || null;
+
+    // 2. Get brand settings (guidelines)
+    const settingsResult = await pool.query(
+      'SELECT * FROM brand_settings WHERE brand_id = $1',
+      [brand_id]
+    );
+    context.settings = settingsResult.rows[0] || null;
+
+    // 3. Get brand basic info
+    const brandResult = await pool.query(
+      'SELECT * FROM brands WHERE id = $1',
+      [brand_id]
+    );
+    context.brand = brandResult.rows[0];
+
+    // 4. Get campaign details
+    const campaignResult = await pool.query(
+      'SELECT * FROM campaigns WHERE id = $1',
+      [campaign_id]
+    );
+    context.campaign = campaignResult.rows[0];
+
+    // 5. Get product/service if specified
+    if (product_service_id) {
+      const productResult = await pool.query(
+        'SELECT ps.*, array_agg(json_build_object(\'offer_text\', po.offer_text, \'expiration_date\', po.expiration_date)) as offers FROM products_services ps LEFT JOIN product_offers po ON ps.id = po.product_service_id WHERE ps.id = $1 AND (po.expiration_date IS NULL OR po.expiration_date > NOW()) GROUP BY ps.id',
+        [product_service_id]
+      );
+      context.product = productResult.rows[0] || null;
+    }
+
+    // 6. Get target audiences if specified
+    if (target_audience_ids && target_audience_ids.length > 0) {
+      const audiencesResult = await pool.query(
+        'SELECT * FROM target_audiences WHERE id = ANY($1)',
+        [target_audience_ids]
+      );
+      context.audiences = audiencesResult.rows;
+    }
+
+    // Determine format and build prompt
+    const isMetaChannel = channel === 'Meta';
+    const isDisplayChannel = channel.includes('Display');
+
+    let prompt = '';
+
+    if (isMetaChannel) {
+      // Meta/Facebook format
+      const emojiInstruction = context.settings?.emoji_usage === 'never'
+        ? 'NO EMOJIS'
+        : context.settings?.emoji_usage === 'always'
+        ? 'Use emojis'
+        : 'Use emojis sparingly if appropriate';
+
+      prompt = `You are generating Facebook/Meta ad copy for ${context.brand.name}.
+
+BRAND CONTEXT:
+${context.intelligence ? `
+- Mission: ${context.intelligence.mission || 'N/A'}
+- Brand Voice: ${JSON.stringify(context.intelligence.brand_voice) || 'N/A'}
+- Brand Tone: ${context.intelligence.brand_tone || 'N/A'}
+- Key Messages: ${JSON.stringify(context.intelligence.key_messages) || 'N/A'}
+` : ''}
+
+${context.product ? `
+PRODUCT/SERVICE:
+- Name: ${context.product.name}
+- Category: ${context.product.category}
+- Description: ${context.product.description}
+- Features: ${JSON.stringify(context.product.features)}
+- Price: ${context.product.price || 'Contact for pricing'}
+${context.product.offers ? `- Active Offers: ${JSON.stringify(context.product.offers.filter(o => o.offer_text))}` : ''}
+` : ''}
+
+${context.audiences && context.audiences.length > 0 ? `
+TARGET AUDIENCE:
+${context.audiences.map(a => `- ${a.name}: ${a.description}`).join('\n')}
+Pain Points: ${JSON.stringify(context.audiences[0]?.pain_points || [])}
+Goals: ${JSON.stringify(context.audiences[0]?.goals || [])}
+` : ''}
+
+CAMPAIGN:
+- Objective: ${context.campaign.objective}
+- Marketing Objectives: ${JSON.stringify(context.campaign.marketing_objectives)}
+
+${context.settings?.ad_copy_guidelines ? `
+GUIDELINES:
+${context.settings.ad_copy_guidelines}
+` : ''}
+
+REQUIREMENTS:
+- Primary Text: Maximum 125 characters. ${emojiInstruction}
+- Headline: Maximum 40 characters, compelling and clear.
+- Link Description: Maximum 30 characters, action-oriented copy that complements the headline.
+- Display Link: Use a clean domain format (e.g., '${context.brand.website?.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'example.com'}').
+- CTA: Choose from: Learn More, Shop Now, Sign Up, Download, Get Quote, Book Now, Apply Now, Contact Us.
+- Ad Name: Brief, descriptive name including ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}. Focus on the content, avoid underscores or hyphens.
+
+Generate 5 variants with different approaches:
+1. Value-first (problem → outcome)
+2. Offer-led (with urgency if applicable)
+3. Proof-driven (trust/social proof)
+4. Speed/convenience
+5. Emotional connection
+
+OUTPUT FORMAT (JSON array):
+[
+  {
+    "postText": "primary text under 125 chars",
+    "headline": "headline under 40 chars",
+    "linkDescription": "supporting copy under 30 chars",
+    "displayLink": "clean domain",
+    "cta": "selected CTA from list",
+    "adName": "descriptive campaign name under 50 chars",
+    "reasoning": "brief explanation of creative approach"
+  }
+]
+
+Return ONLY the JSON array, no other text.`;
+    } else if (isDisplayChannel) {
+      // Display Ads format
+      prompt = `You are generating display banner ad copy for ${context.brand.name}.
+
+BRAND CONTEXT:
+${context.intelligence ? `
+- Mission: ${context.intelligence.mission || 'N/A'}
+- Brand Voice: ${JSON.stringify(context.intelligence.brand_voice) || 'N/A'}
+- Brand Tone: ${context.intelligence.brand_tone || 'N/A'}
+- Key Messages: ${JSON.stringify(context.intelligence.key_messages) || 'N/A'}
+` : ''}
+
+${context.product ? `
+PRODUCT/SERVICE:
+- Name: ${context.product.name}
+- Description: ${context.product.description}
+- Features: ${JSON.stringify(context.product.features)}
+- Price: ${context.product.price || 'Contact for pricing'}
+` : ''}
+
+${context.audiences && context.audiences.length > 0 ? `
+TARGET AUDIENCE:
+${context.audiences.map(a => `- ${a.name}: ${a.description}`).join('\n')}
+Pain Points: ${JSON.stringify(context.audiences[0]?.pain_points || [])}
+` : ''}
+
+CAMPAIGN:
+- Objective: ${context.campaign.objective}
+- Marketing Objectives: ${JSON.stringify(context.campaign.marketing_objectives)}
+
+${context.settings?.ad_copy_guidelines ? `
+GUIDELINES:
+${context.settings.ad_copy_guidelines}
+` : ''}
+
+REQUIREMENTS:
+- Short Headline: Maximum 30 characters (no end punctuation)
+- Long Headline: Maximum 90 characters
+- Description: Maximum 90 characters
+- CTA: Choose from: Learn More, Shop Now, Book Now, Get Quote, Start Free
+- Display Link: ${context.brand.website?.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'example.com'}
+- Ad Name: Brief, descriptive name
+
+IMPORTANT:
+- Say one thing, fast. Single value prop + one CTA.
+- Prioritize clarity over cleverness
+- Use active voice and short, scannable copy
+- No text on images (this is text-only)
+
+Generate 5 variants with different approaches:
+1. Value-first (problem → outcome)
+2. Offer-led (numerals + urgency)
+3. Proof-driven (trust token)
+4. Speed/convenience
+5. Direct benefit
+
+OUTPUT FORMAT (JSON array):
+[
+  {
+    "shortHeadline": "short headline ≤30 chars",
+    "longHeadline": "long headline ≤90 chars",
+    "description": "description ≤90 chars",
+    "displayLink": "clean domain",
+    "cta": "selected CTA",
+    "adName": "descriptive name",
+    "reasoning": "brief explanation"
+  }
+]
+
+Return ONLY the JSON array, no other text.`;
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: `Unsupported channel: ${channel}. Currently supports Meta and Display channels.`
+      });
+    }
+
+    // Call Claude API
+    const claudeApiKey = process.env.VITE_CLAUDE_API_KEY;
+    if (!claudeApiKey) {
+      return res.status(503).json({
+        success: false,
+        error: 'Claude API key not configured'
+      });
+    }
+
+    const claudeResponse = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: 'claude-3-7-sonnet-20250219',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }]
+    }, {
+      headers: {
+        'x-api-key': claudeApiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
+      },
+      timeout: 60000
+    });
+
+    let aiResponse = claudeResponse.data.content[0].text.trim();
+
+    // Remove markdown code blocks if present
+    if (aiResponse.startsWith('```')) {
+      aiResponse = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    }
+
+    const variants = JSON.parse(aiResponse);
+
+    if (!Array.isArray(variants) || variants.length === 0) {
+      throw new Error('AI did not return valid variants array');
+    }
+
+    console.log(`✅ Generated ${variants.length} ad copy variants`);
+
+    // Create generated_creative record
+    const creativeResult = await pool.query(
+      `INSERT INTO generated_creatives (brand_id, campaign_id, channel, status, generation_model, context_used)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [brand_id, campaign_id, channel, 'completed', 'claude-3-7-sonnet-20250219', JSON.stringify(context)]
+    );
+
+    const creative = creativeResult.rows[0];
+
+    // Save variants
+    for (let i = 0; i < variants.length; i++) {
+      await pool.query(
+        `INSERT INTO ad_copy_variants (creative_id, variant_number, copy_data, rationale)
+         VALUES ($1, $2, $3, $4)`,
+        [creative.id, i + 1, JSON.stringify(variants[i]), variants[i].reasoning || '']
+      );
+    }
+
+    res.json({
+      success: true,
+      data: {
+        creative_id: creative.id,
+        channel: channel,
+        variants: variants
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating ad copy:', error);
+
+    // Update creative status to failed if it was created
+    if (req.body.creative_id) {
+      await pool.query(
+        'UPDATE generated_creatives SET status = $1, error_message = $2 WHERE id = $3',
+        ['failed', error.message, req.body.creative_id]
+      );
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate ad copy'
+    });
+  }
+});
+
+// POST - Trigger ad copy generation for all channels in a campaign
+app.post('/api/campaigns/:id/generate-creatives', async (req, res) => {
+  try {
+    const { id: campaign_id } = req.params;
+
+    console.log(`🚀 Triggering creative generation for campaign: ${campaign_id}`);
+
+    // Get campaign details
+    const campaignResult = await pool.query(
+      'SELECT * FROM campaigns WHERE id = $1',
+      [campaign_id]
+    );
+
+    if (campaignResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Campaign not found'
+      });
+    }
+
+    const campaign = campaignResult.rows[0];
+    const channels = campaign.channels || [];
+
+    if (channels.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campaign has no channels selected'
+      });
+    }
+
+    // Generate ad copy for each channel
+    const results = [];
+    for (const channel of channels) {
+      try {
+        const genResponse = await axios.post(`${req.protocol}://${req.get('host')}/api/ai/generate-ad-copy`, {
+          brand_id: campaign.brand_id,
+          campaign_id: campaign.id,
+          channel: channel,
+          product_service_id: campaign.product_service_id,
+          target_audience_ids: campaign.target_audience_ids,
+          marketing_objectives: campaign.marketing_objectives
+        });
+
+        results.push({
+          channel,
+          success: true,
+          creative_id: genResponse.data.data.creative_id
+        });
+      } catch (error) {
+        console.error(`Failed to generate for channel ${channel}:`, error.message);
+        results.push({
+          channel,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Generated ad copy for ${results.filter(r => r.success).length}/${channels.length} channels`,
+      results
+    });
+
+  } catch (error) {
+    console.error('Error triggering creative generation:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to trigger creative generation'
+    });
+  }
+});
+
+// GET - Fetch generated creatives with optional campaign filter
+app.get('/api/generated-creatives', async (req, res) => {
+  try {
+    const { brand_id, campaign_id } = req.query;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id is required'
+      });
+    }
+
+    let query = `
+      SELECT gc.*, c.name as campaign_name, c.objective as campaign_objective
+      FROM generated_creatives gc
+      LEFT JOIN campaigns c ON gc.campaign_id = c.id
+      WHERE gc.brand_id = $1
+    `;
+    const params = [brand_id];
+
+    if (campaign_id) {
+      query += ' AND gc.campaign_id = $2';
+      params.push(campaign_id);
+    }
+
+    query += ' ORDER BY gc.created_at DESC';
+
+    const creativesResult = await pool.query(query, params);
+
+    // Fetch variants for each creative
+    const creativesWithVariants = await Promise.all(
+      creativesResult.rows.map(async (creative) => {
+        const variantsResult = await pool.query(
+          'SELECT * FROM ad_copy_variants WHERE creative_id = $1 ORDER BY variant_number ASC',
+          [creative.id]
+        );
+
+        return {
+          ...creative,
+          variants: variantsResult.rows
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: creativesWithVariants
+    });
+
+  } catch (error) {
+    console.error('Error fetching generated creatives:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch generated creatives'
+    });
+  }
+});
+
+// POST - Unified AI endpoint (handles multiple actions including parse-product-service)
+app.post('/api/ai', async (req, res) => {
+  try {
+    const { action, url, content, images, itemType, pageType } = req.body;
+
+    if (!action) {
+      return res.status(400).json({
+        success: false,
+        error: 'action is required'
+      });
+    }
+
+    console.log(`🤖 AI action: ${action}`);
+
+    // Handle parse-product-service action
+    if (action === 'parse-product-service') {
+      if (!url || !content || !images || !itemType || !pageType) {
+        return res.status(400).json({
+          success: false,
+          error: 'url, content, images, itemType, and pageType are required for parse-product-service'
+        });
+      }
+
+      const claudeApiKey = process.env.VITE_CLAUDE_API_KEY;
+      if (!claudeApiKey) {
+        return res.status(503).json({
+          success: false,
+          error: 'Claude API key not configured'
+        });
+      }
+
+      const isSingleItem = pageType === 'single';
+      const isProduct = itemType === 'product';
+
+      const prompt = isSingleItem
+        ? `Parse this ${isProduct ? 'product' : 'service'} page and extract structured information. Return ONLY a JSON object (not an array) with this exact structure:
+{
+  "name": "Product/Service name",
+  "category": "Category or type",
+  "description": "Detailed description (2-3 sentences)",
+  "price": "Price or pricing info (e.g. '$99' or '$99/mo' or 'Contact for pricing')",
+  "features": ["Feature 1", "Feature 2", "Feature 3"],
+  "image_urls": ["url1", "url2"]
+}
+
+Page URL: ${url}
+Page Title: ${content?.title || 'N/A'}
+Page Description: ${content?.description || 'N/A'}
+Page Content: ${content?.text?.substring(0, 10000) || 'N/A'}
+Available Images: ${JSON.stringify(images?.slice(0, 4) || [])}
+
+Extract the key features, pricing, and select 1-4 of the most relevant product images from the available images.`
+        : `Parse this page containing multiple ${isProduct ? 'products' : 'services'} and extract structured information for each. Return ONLY a JSON array with this exact structure:
+[
+  {
+    "name": "Product/Service name",
+    "category": "Category or type",
+    "description": "Brief description (1-2 sentences)",
+    "price": "Price or pricing info",
+    "features": ["Feature 1", "Feature 2"],
+    "image_urls": ["url1", "url2"]
+  }
+]
+
+Page URL: ${url}
+Page Title: ${content?.title || 'N/A'}
+Page Description: ${content?.description || 'N/A'}
+Page Content: ${content?.text?.substring(0, 20000) || 'N/A'}
+Available Images: ${JSON.stringify(images?.slice(0, 20) || [])}
+
+Extract 3-10 items from the page. For each item, select 1-3 of the most relevant images from the available images.`;
+
+      const claudeResponse = await axios.post('https://api.anthropic.com/v1/messages', {
+        model: 'claude-3-7-sonnet-20250219',
+        max_tokens: 8000,
+        messages: [{
+          role: 'user',
+          content: prompt
+        }]
+      }, {
+        headers: {
+          'x-api-key': claudeApiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json'
+        },
+        timeout: 60000
+      });
+
+      const responseText = claudeResponse.data.content[0].text;
+
+      let result;
+      if (isSingleItem) {
+        // For single item, parse the object and return it in an array
+        const item = JSON.parse(responseText.match(/\{[\s\S]*\}/)[0]);
+        result = [item];
+      } else {
+        // For collection, parse the array directly
+        result = JSON.parse(responseText.match(/\[[\s\S]*\]/)[0]);
+      }
+
+      console.log(`✅ Parsed ${result.length} item(s)`);
+
+      return res.json({
+        success: true,
+        data: result
+      });
+    }
+
+    // For other actions, redirect to dedicated endpoints
+    const dedicatedEndpoints = {
+      'generate-brand-intelligence': '/api/ai/generate-brand-intelligence',
+      'generate-audiences': '/api/ai/generate-audiences',
+      'analyze-competitor': '/api/ai/analyze-competitor',
+      'generate-products': '/api/ai/generate-products',
+      'generate-campaigns': '/api/ai/generate-campaigns'
+    };
+
+    const dedicatedEndpoint = dedicatedEndpoints[action];
+    if (dedicatedEndpoint) {
+      return res.status(400).json({
+        success: false,
+        error: `Use dedicated endpoint: POST ${dedicatedEndpoint}`,
+        hint: 'The unified /api/ai endpoint only supports parse-product-service. For other actions, use the dedicated endpoints listed above.'
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      error: `Unknown action: ${action}`
+    });
+
+  } catch (error) {
+    console.error('AI endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'AI processing failed'
+    });
+  }
+});
+
 // Fallback route - handle all other requests
 app.use((req, res) => {
   res.status(404).json({
@@ -2423,8 +3757,9 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ API server running on http://localhost:${PORT}`);
+  console.log(`✅ Network access available at http://192.168.254.93:${PORT}`);
   console.log('📍 Available endpoints:');
   console.log('   GET  /health - Health check');
   console.log('   POST /api/extract-brand - Extract brand from URL');
