@@ -4185,6 +4185,45 @@ Extract 3-10 items from the page. For each item, select 1-3 of the most relevant
   }
 });
 
+// Admin: Run database migrations
+app.post('/api/admin/run-migrations', async (req, res) => {
+  try {
+    console.log('🔧 Running database migrations...');
+
+    const migrations = [];
+
+    // Migration 1: Add search_query column to ad_inspirations
+    try {
+      await pool.query(`
+        ALTER TABLE ad_inspirations
+        ADD COLUMN IF NOT EXISTS search_query TEXT;
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_ad_inspirations_search_query
+        ON ad_inspirations(search_query);
+      `);
+      migrations.push({ name: 'add_search_query_to_ads', status: 'success' });
+      console.log('✅ Migration: add_search_query_to_ads');
+    } catch (error) {
+      migrations.push({ name: 'add_search_query_to_ads', status: 'error', error: error.message });
+      console.error('❌ Migration failed: add_search_query_to_ads', error.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Migrations completed',
+      migrations
+    });
+
+  } catch (error) {
+    console.error('Migration error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Fallback route - handle all other requests
 app.use((req, res) => {
   res.status(404).json({
