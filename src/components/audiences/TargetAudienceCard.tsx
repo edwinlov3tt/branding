@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Edit2, Trash2, ChevronDown } from 'lucide-react'
 import type { TargetAudience } from '@/types'
 import axios from 'axios'
 import './TargetAudienceCard.css'
@@ -13,6 +14,9 @@ const TargetAudienceCard = ({ audience, onDelete }: Props) => {
   const navigate = useNavigate()
   const { slug, shortId } = useParams()
   const [isDeleting, setIsDeleting] = useState(false)
+  const [overviewOpen, setOverviewOpen] = useState(false)
+  const [behaviorsOpen, setBehaviorsOpen] = useState(false)
+  const [goalsOpen, setGoalsOpen] = useState(false)
 
   const interests = Array.isArray(audience.interests) ? audience.interests : []
   const painPoints = Array.isArray(audience.pain_points) ? audience.pain_points : []
@@ -46,76 +50,139 @@ const TargetAudienceCard = ({ audience, onDelete }: Props) => {
     }
   }
 
+  // Parse demographics into chips
+  const parseDemographics = () => {
+    if (!audience.demographics) return { age: '', gender: '', location: '', income: '' }
+
+    const demo = audience.demographics
+    const parts: { age?: string; gender?: string; location?: string; income?: string } = {}
+
+    // Try to extract age (e.g., "Age: 40-60" or just "40-60")
+    const ageMatch = demo.match(/(?:Age:\s*)?(\d+[-–]\d+)/i)
+    if (ageMatch) parts.age = ageMatch[1]
+
+    // Try to extract gender
+    const genderMatch = demo.match(/Gender:\s*([^|,\n]+)/i)
+    if (genderMatch) parts.gender = genderMatch[1].trim()
+    else if (demo.toLowerCase().includes('all')) parts.gender = 'All'
+
+    // Try to extract location
+    const locationMatch = demo.match(/Location:\s*([^|,\n]+)/i)
+    if (locationMatch) parts.location = locationMatch[1].trim()
+
+    // Try to extract income
+    const incomeMatch = demo.match(/Income:\s*\$?([^|,\n]+)/i)
+    if (incomeMatch) parts.income = incomeMatch[1].trim()
+
+    return parts
+  }
+
+  const demoChips = parseDemographics()
+
   return (
-    <div className="audience-card card">
-      <div className="audience-header">
-        <div className="audience-header-content">
-          <h3 className="audience-name">{audience.name}</h3>
-          {audience.demographics && (
-            <p className="audience-subtitle">{audience.demographics}</p>
-          )}
+    <article className="audience-card">
+      <div className="card-header">
+        <div className="title-wrap">
+          <h2 className="card-title">{audience.name}</h2>
         </div>
-        <div className="audience-actions">
-          <button
-            className="action-button edit-button"
-            onClick={handleEdit}
-            title="Edit audience"
-            aria-label="Edit audience"
-          >
-            Edit
+        <div className="card-actions">
+          <button className="icon-btn" onClick={handleEdit} title="Edit" aria-label="Edit audience">
+            <Edit2 size={16} />
           </button>
           <button
-            className="action-button delete-button"
+            className="icon-btn"
             onClick={handleDelete}
             disabled={isDeleting}
-            title="Delete audience"
+            title="Delete"
             aria-label="Delete audience"
           >
-            {isDeleting ? 'Deleting...' : 'Delete'}
+            <Trash2 size={16} />
           </button>
         </div>
       </div>
 
+      {/* Demographics summary chips */}
+      {(demoChips.age || demoChips.gender || demoChips.location || demoChips.income) && (
+        <div className="summary-row">
+          {demoChips.age && <span className="meta-chip">{demoChips.age}</span>}
+          {demoChips.gender && <span className="meta-chip">{demoChips.gender}</span>}
+          {demoChips.location && <span className="meta-chip">{demoChips.location}</span>}
+          {demoChips.income && <span className="meta-chip">${demoChips.income}</span>}
+        </div>
+      )}
+
+      {/* Buying Behavior - as description before overview */}
       {audience.description && (
-        <div className="audience-section">
-          <h4 className="audience-section-title">Business Context:</h4>
-          <p className="audience-description">{audience.description}</p>
+        <p className="buying-behavior">{audience.description}</p>
+      )}
+
+      {/* Overview - collapsible */}
+      {audience.demographics && (
+        <div className="details-section">
+          <button
+            className="details-summary"
+            onClick={() => setOverviewOpen(!overviewOpen)}
+            aria-expanded={overviewOpen}
+          >
+            <span>Overview</span>
+            <ChevronDown size={16} className={`chevron ${overviewOpen ? 'open' : ''}`} />
+          </button>
+          {overviewOpen && (
+            <div className="details-content">
+              <p className="demographics-text">{audience.demographics}</p>
+            </div>
+          )}
         </div>
       )}
 
-      {painPoints.length > 0 && (
-        <div className="audience-section">
-          <h4 className="audience-section-title">Key Pain Points:</h4>
-          <ul className="audience-list">
-            {painPoints.map((point, index) => (
-              <li key={index}>{point}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
+      {/* Behaviors - collapsible with chips */}
       {interests.length > 0 && (
-        <div className="audience-section">
-          <h4 className="audience-section-title">Behaviors:</h4>
-          <ul className="audience-list">
-            {interests.map((interest, index) => (
-              <li key={index}>{interest}</li>
-            ))}
-          </ul>
+        <div className="details-section">
+          <button
+            className="details-summary"
+            onClick={() => setBehaviorsOpen(!behaviorsOpen)}
+            aria-expanded={behaviorsOpen}
+          >
+            <span>Behaviors</span>
+            <span className="count">{interests.length}</span>
+            <ChevronDown size={16} className={`chevron ${behaviorsOpen ? 'open' : ''}`} />
+          </button>
+          {behaviorsOpen && (
+            <div className="details-content">
+              <div className="chips">
+                {interests.map((interest, index) => (
+                  <span key={index} className="chip">{interest}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* Goals - collapsible with chips */}
       {goals.length > 0 && (
-        <div className="audience-section">
-          <h4 className="audience-section-title">Goals:</h4>
-          <ul className="audience-list goal-list">
-            {goals.map((goal, index) => (
-              <li key={index}>{goal}</li>
-            ))}
-          </ul>
+        <div className="details-section">
+          <button
+            className="details-summary"
+            onClick={() => setGoalsOpen(!goalsOpen)}
+            aria-expanded={goalsOpen}
+          >
+            <span>Goals</span>
+            <span className="count">{goals.length}</span>
+            <ChevronDown size={16} className={`chevron ${goalsOpen ? 'open' : ''}`} />
+          </button>
+          {goalsOpen && (
+            <div className="details-content">
+              <div className="chips">
+                {goals.map((goal, index) => (
+                  <span key={index} className="chip dot">{goal}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </article>
   )
 }
 

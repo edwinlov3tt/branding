@@ -35,6 +35,11 @@ const BrandOnboarding = () => {
     website: string;
     description: string;
   } | null>(null);
+  const [brandProfileData, setBrandProfileData] = useState<{
+    name: string;
+    description: string;
+  } | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Step 1: Method selection
@@ -49,8 +54,36 @@ const BrandOnboarding = () => {
   };
 
   // Step 2: Brand extraction/entry
-  const handleBrandExtracted = (data: BrandExtractResponse) => {
+  const handleBrandExtracted = async (data: BrandExtractResponse) => {
     setExtractedData(data);
+
+    // Call Brand Profiler API to get brand name and description
+    if (data.brand.url) {
+      setIsLoadingProfile(true);
+      try {
+        console.log('[Onboarding] Fetching brand profile data...');
+        const profileResponse = await createBrandProfile('temp-id', data.brand.url, {
+          includeReviews: false,
+          maxPages: 5,
+          mode: 'sync'
+        });
+
+        if (profileResponse.success && profileResponse.data?.brandProfile) {
+          const profile = profileResponse.data.brandProfile;
+          setBrandProfileData({
+            name: profile.brand?.name || '',
+            description: profile.brand?.positioning || profile.brand?.mission || ''
+          });
+          console.log('[Onboarding] ✅ Brand profile data fetched');
+        }
+      } catch (error: any) {
+        console.error('[Onboarding] ⚠️ Failed to fetch brand profile:', error);
+        // Don't block onboarding if brand profiler fails
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    }
+
     setCurrentStep(3);
   };
 
@@ -313,11 +346,13 @@ const BrandOnboarding = () => {
 
         {currentStep === 4 && (
           <BrandDetails
-            initialName={manualBrandData?.name || ''}
+            initialName={manualBrandData?.name || brandProfileData?.name || ''}
             initialWebsite={manualBrandData?.website || extractedData?.brand.url || ''}
+            initialDescription={manualBrandData?.description || brandProfileData?.description || ''}
             onSave={handleSaveBrand}
             onBack={handleBack}
             isSaving={isSaving}
+            isLoadingProfile={isLoadingProfile}
           />
         )}
       </div>

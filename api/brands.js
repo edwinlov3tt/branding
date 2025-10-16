@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
 
     // POST - Create new brand
     else if (req.method === 'POST') {
-      const { name, website, logo_url, primary_color, industry, favicon_url } = req.body;
+      const { name, website, description, logo_url, primary_color, industry, favicon_url } = req.body;
 
       if (!name) {
         res.status(400).json({
@@ -103,10 +103,10 @@ module.exports = async (req, res) => {
       }
 
       const result = await pool.query(
-        `INSERT INTO brands (name, website, logo_url, primary_color, slug, short_id, industry, favicon_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO brands (name, website, description, logo_url, primary_color, slug, short_id, industry, favicon_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [name, website, logo_url, primary_color, slug, shortId, industry, favicon_url]
+        [name, website, description, logo_url, primary_color, slug, shortId, industry, favicon_url]
       );
 
       res.status(201).json({
@@ -117,7 +117,7 @@ module.exports = async (req, res) => {
 
     // PUT - Update brand
     else if (req.method === 'PUT') {
-      const { id, name, website, logo_url, primary_color } = req.body;
+      const { id, name, website, description, logo_url, primary_color, industry } = req.body;
 
       if (!id) {
         res.status(400).json({
@@ -131,12 +131,14 @@ module.exports = async (req, res) => {
         `UPDATE brands
          SET name = COALESCE($2, name),
              website = COALESCE($3, website),
-             logo_url = COALESCE($4, logo_url),
-             primary_color = COALESCE($5, primary_color),
+             description = COALESCE($4, description),
+             logo_url = COALESCE($5, logo_url),
+             primary_color = COALESCE($6, primary_color),
+             industry = COALESCE($7, industry),
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1
          RETURNING *`,
-        [id, name, website, logo_url, primary_color]
+        [id, name, website, description, logo_url, primary_color, industry]
       );
 
       if (result.rowCount === 0) {

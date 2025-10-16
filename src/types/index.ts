@@ -503,6 +503,7 @@ export interface Brand {
   id: string;
   name: string;
   website: string;
+  description?: string;
   logo?: string;
   primaryColor?: string;
   slug: string;

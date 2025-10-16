@@ -104,6 +104,7 @@ const AllBrands = () => {
                   key={brand.id}
                   brand={brand}
                   onSelect={handleSelectBrand}
+                  onDelete={loadBrands}
                 />
               ))}
             </div>

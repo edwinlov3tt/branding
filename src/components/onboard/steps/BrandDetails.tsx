@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './BrandDetails.css';
 
 interface BrandDetailsProps {
   initialName?: string;
   initialWebsite?: string;
+  initialDescription?: string;
   onSave: (details: BrandDetailsData) => void;
   onBack: () => void;
   isSaving: boolean;
+  isLoadingProfile?: boolean;
 }
 
 export interface BrandDetailsData {
@@ -35,11 +37,32 @@ const industries = [
   'Other'
 ];
 
-const BrandDetails = ({ initialName = '', initialWebsite = '', onSave, onBack, isSaving }: BrandDetailsProps) => {
+const BrandDetails = ({
+  initialName = '',
+  initialWebsite = '',
+  initialDescription = '',
+  onSave,
+  onBack,
+  isSaving,
+  isLoadingProfile = false
+}: BrandDetailsProps) => {
   const [name, setName] = useState(initialName);
   const [website, setWebsite] = useState(initialWebsite);
   const [industry, setIndustry] = useState('');
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(initialDescription);
+
+  // Update fields when initial values change (e.g., after API call completes)
+  useEffect(() => {
+    if (initialName && !name) {
+      setName(initialName);
+    }
+  }, [initialName]);
+
+  useEffect(() => {
+    if (initialDescription && !description) {
+      setDescription(initialDescription);
+    }
+  }, [initialDescription]);
 
   const handleSubmit = () => {
     if (!name) return;
@@ -51,7 +74,11 @@ const BrandDetails = ({ initialName = '', initialWebsite = '', onSave, onBack, i
       <div className="step-header">
         <h2 className="step-title">Brand Details</h2>
         <p className="step-description">
-          Add additional information about your brand. This will help personalize your experience.
+          {isLoadingProfile
+            ? 'Loading brand information from your website...'
+            : initialName
+            ? 'Review and confirm your brand details. Fields have been auto-populated from your website.'
+            : 'Add additional information about your brand. This will help personalize your experience.'}
         </p>
       </div>
 

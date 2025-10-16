@@ -2,6 +2,9 @@
   padding: 24px;
   cursor: pointer;
   transition: var(--transition-base);
+  display: flex;
+  flex-direction: column;
+  min-height: 250px;
 }
 
 .brand-card:hover {
@@ -11,9 +14,10 @@
 
 .brand-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  position: relative;
 }
 
 .brand-card-logo {
@@ -23,6 +27,7 @@
   object-fit: contain;
   background: var(--bg-tertiary);
   padding: 8px;
+  flex-shrink: 0;
 }
 
 .brand-card-logo-placeholder {
@@ -32,18 +37,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .brand-card-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .brand-card-name {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  margin: 0;
 }
 
 .brand-card-website {
@@ -60,36 +69,113 @@
   color: var(--brand-red);
 }
 
-.brand-card-meta {
+.brand-industry {
   display: flex;
-  gap: 24px;
-  padding: 16px 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  gap: 6px;
+  align-items: baseline;
+}
+
+.industry-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.industry-value {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.brand-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-bottom: 16px;
 }
 
-.brand-card-stat {
+.brand-chip {
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.12s ease, color 0.2s ease;
+}
+
+.brand-chip:hover {
+  border-color: rgba(148, 163, 184, 0.4);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.brand-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 6px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease;
+}
+
+.icon-btn:hover {
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.brand-card-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
-.stat-label {
+.brand-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brand-meta-item {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.meta-label {
   font-size: 12px;
   color: var(--text-secondary);
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
-.stat-value {
-  font-size: 20px;
-  font-weight: 600;
+.meta-value {
+  font-size: 14px;
   color: var(--text-primary);
+  line-height: 1.5;
 }
 
 .brand-card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 .brand-card-date {
