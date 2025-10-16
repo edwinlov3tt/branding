@@ -795,12 +795,29 @@ app.post('/api/brands', async (req, res) => {
       shortId = generateShortId(); // Generate a new one
     }
 
-    const result = await pool.query(
-      `INSERT INTO brands (name, website, description, logo_url, primary_color, slug, short_id, industry, favicon_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING *`,
-      [name, website, description, logo_url, primary_color, slug, shortId, industry, favicon_url]
-    );
+    // Try inserting with description first, fallback without if column doesn't exist
+    let result;
+    try {
+      result = await pool.query(
+        `INSERT INTO brands (name, website, description, logo_url, primary_color, slug, short_id, industry, favicon_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [name, website, description, logo_url, primary_color, slug, shortId, industry, favicon_url]
+      );
+    } catch (error) {
+      // If description column doesn't exist, try without it
+      if (error.code === '42703') {
+        console.log('⚠️ Description column does not exist, inserting without it');
+        result = await pool.query(
+          `INSERT INTO brands (name, website, logo_url, primary_color, slug, short_id, industry, favicon_url)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING *`,
+          [name, website, logo_url, primary_color, slug, shortId, industry, favicon_url]
+        );
+      } else {
+        throw error;
+      }
+    }
 
     res.status(201).json({
       success: true,
