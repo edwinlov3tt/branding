@@ -19,7 +19,6 @@ const TargetAudienceCard = ({ audience, onDelete }: Props) => {
   const [goalsOpen, setGoalsOpen] = useState(false)
 
   const interests = Array.isArray(audience.interests) ? audience.interests : []
-  const painPoints = Array.isArray(audience.pain_points) ? audience.pain_points : []
   const goals = Array.isArray(audience.goals) ? audience.goals : []
 
   const handleEdit = () => {
