@@ -49,7 +49,35 @@ function generateShortId() {
 }
 
 // Middleware
-app.use(cors());
+// CORS configuration to allow Vercel frontend and localhost development
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://branding-rosy.vercel.app',
+  'https://branding-4ct6iif41-edwin-lovett-iiis-projects.vercel.app',
+  'https://branding-86uu7g0dg-edwin-lovett-iiis-projects.vercel.app',
+  'https://branding-lzenbtplq-edwin-lovett-iiis-projects.vercel.app'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+
+    // Allow any Vercel preview deployment
+    if (origin.includes('edwin-lovett-iiis-projects.vercel.app') ||
+        origin.includes('branding-rosy.vercel.app') ||
+        allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

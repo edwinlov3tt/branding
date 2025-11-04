@@ -1,0 +1,14 @@
+# Exclude backend files - we're using Railway for the API
+api/
+server.js
+migrate-description.js
+
+# Railway config files
+railway.json
+Procfile
+
+# Database migrations
+lib/migrations/
+
+# Local environment files
+.env.local

@@ -38,9 +38,8 @@ export const extractBrandDataEnhanced = async (
 
   return new Promise(async (resolve, reject) => {
     try {
-      // Determine the API base URL (empty for production, localhost for dev)
-      const isProduction = import.meta.env.PROD;
-      const baseURL = isProduction ? '' : 'http://localhost:3001';
+      // Use Railway backend for all API calls
+      const baseURL = import.meta.env.VITE_API_BASE_URL || 'https://branding.up.railway.app';
 
       const response = await fetch(`${baseURL}/api/analyze-brand-enhanced`, {
         method: 'POST',
