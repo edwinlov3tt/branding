@@ -11,6 +11,7 @@ import {
   saveBrandAssets,
   createBrandProfile
 } from '@/services/api/brandService';
+import { scrapeContentOnly } from '@/services/api/contentScraperService';
 import { useBrand } from '@/contexts/BrandContext';
 import { generateBrandUrl } from '@/utils/brandIdentifiers';
 import './BrandOnboarding.css';
@@ -39,6 +40,12 @@ const BrandOnboarding = () => {
     name: string;
     description: string;
   } | null>(null);
+  const [scrapedContent, setScrapedContent] = useState<{
+    title: string;
+    description: string;
+    text: string;
+    truncated: boolean;
+  } | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -57,28 +64,61 @@ const BrandOnboarding = () => {
   const handleBrandExtracted = async (data: BrandExtractResponse) => {
     setExtractedData(data);
 
-    // Call Brand Profiler API to get brand name and description
+    // Scrape content and call Brand Profiler API in parallel
     if (data.brand.url) {
       setIsLoadingProfile(true);
-      try {
-        console.log('[Onboarding] Fetching brand profile data...');
-        const profileResponse = await createBrandProfile('temp-id', data.brand.url, {
-          includeReviews: false,
-          maxPages: 5,
-          mode: 'sync'
-        });
 
-        if (profileResponse.success && profileResponse.data?.brandProfile) {
-          const profile = profileResponse.data.brandProfile;
+      try {
+        // Start both operations in parallel
+        const [contentResult, profileResult] = await Promise.allSettled([
+          // 1. Scrape website content using Cloudflare Worker
+          scrapeContentOnly(data.brand.url).catch(error => {
+            console.error('[Onboarding] ⚠️ Content scraping failed:', error);
+            return null;
+          }),
+
+          // 2. Call Brand Profiler API
+          createBrandProfile('temp-id', data.brand.url, {
+            includeReviews: false,
+            maxPages: 5,
+            mode: 'sync'
+          }).catch(error => {
+            console.error('[Onboarding] ⚠️ Brand profiler failed:', error);
+            return null;
+          })
+        ]);
+
+        // Process scraped content
+        if (contentResult.status === 'fulfilled' && contentResult.value) {
+          console.log('[Onboarding] ✅ Content scraped successfully');
+          console.log('[Onboarding] Content length:', contentResult.value.text.length, 'chars');
+          setScrapedContent(contentResult.value);
+        }
+
+        // Process brand profile data
+        if (profileResult.status === 'fulfilled' && profileResult.value?.success) {
+          const profileResponse = profileResult.value;
+          if (profileResponse.data?.brandProfile) {
+            const profile = profileResponse.data.brandProfile;
+            setBrandProfileData({
+              name: profile.brand?.name || '',
+              description: profile.brand?.positioning || profile.brand?.mission || ''
+            });
+            console.log('[Onboarding] ✅ Brand profile data fetched');
+          }
+        }
+
+        // If brand profiler failed but we have scraped content, use that as fallback
+        if ((!brandProfileData || !brandProfileData.name) && scrapedContent) {
+          console.log('[Onboarding] Using scraped content as fallback for brand data');
           setBrandProfileData({
-            name: profile.brand?.name || '',
-            description: profile.brand?.positioning || profile.brand?.mission || ''
+            name: scrapedContent.title || '',
+            description: scrapedContent.description || ''
           });
-          console.log('[Onboarding] ✅ Brand profile data fetched');
         }
       } catch (error: any) {
-        console.error('[Onboarding] ⚠️ Failed to fetch brand profile:', error);
-        // Don't block onboarding if brand profiler fails
+        console.error('[Onboarding] ⚠️ Error during content/profile fetching:', error);
+        // Don't block onboarding
       } finally {
         setIsLoadingProfile(false);
       }
