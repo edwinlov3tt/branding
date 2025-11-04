@@ -1,14 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
-import tsconfigPaths from 'vite-tsconfig-paths'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    tsconfigPaths() // Automatically resolves paths from tsconfig.json
-  ],
+  plugins: [react()],
   server: {
     host: '0.0.0.0', // Listen on all network interfaces
     port: 5173,
