@@ -1909,7 +1909,7 @@ app.put('/api/products-services', async (req, res) => {
 // DELETE - Delete product/service
 app.delete('/api/products-services', async (req, res) => {
   try {
-    const { id } = req.body;
+    const { id } = req.query;
 
     if (!id) {
       return res.status(400).json({
@@ -2061,7 +2061,7 @@ app.put('/api/competitors', async (req, res) => {
 // DELETE - Delete competitor
 app.delete('/api/competitors', async (req, res) => {
   try {
-    const { id } = req.body;
+    const { id } = req.query;
 
     if (!id) {
       return res.status(400).json({
@@ -2371,7 +2371,7 @@ app.put('/api/target-audiences', async (req, res) => {
 // DELETE - Delete target audience
 app.delete('/api/target-audiences', async (req, res) => {
   try {
-    const { id } = req.body;
+    const { id } = req.query;
 
     if (!id) {
       return res.status(400).json({
@@ -2521,7 +2521,7 @@ app.put('/api/campaigns', async (req, res) => {
 // DELETE - Delete campaign
 app.delete('/api/campaigns', async (req, res) => {
   try {
-    const { id } = req.body;
+    const { id } = req.query;
 
     if (!id) {
       return res.status(400).json({
