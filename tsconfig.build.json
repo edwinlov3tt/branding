@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* Relax settings for production build */
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "isolatedModules": false
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "server.js",
+    "api",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
+}

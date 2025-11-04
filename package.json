@@ -9,6 +9,7 @@
     "start": "node server.js",
     "dev:all": "npm run server & npm run dev",
     "build": "vite build",
+    "build:check": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "db:migrate": "ts-node --project tsconfig.backend.json lib/migrate.ts",
