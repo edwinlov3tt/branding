@@ -277,6 +277,46 @@ export const getBrandProfile = async (brandId: string) => {
   }
 }
 
+/**
+ * Generate a complete brand profile using the Brand Profiler Worker
+ * This calls the worker, polls for completion, and saves to database
+ */
+export const generateBrandProfile = async (
+  brandId: string,
+  domain: string,
+  options: {
+    includeReviews?: boolean
+    maxPages?: number
+    reviewIds?: {
+      googlePlaceId?: string
+      facebookPageId?: string
+      yelpBusinessId?: string
+    }
+  } = {}
+) => {
+  try {
+    console.log('[BrandService] Generating brand profile for:', domain)
+    const response = await apiClient.post('/api/generate-brand-profile', {
+      brand_id: brandId,
+      domain,
+      includeReviews: options.includeReviews !== false,
+      maxPages: options.maxPages || 15,
+      reviewIds: options.reviewIds || {}
+    }, {
+      timeout: 120000 // 2 minute timeout (includes polling)
+    })
+    console.log('[BrandService] ✅ Brand profile generated successfully')
+    return response.data
+  } catch (error) {
+    console.error('[BrandService] Failed to generate brand profile:', error)
+    throw error
+  }
+}
+
+/**
+ * @deprecated Use generateBrandProfile instead
+ * This method only saves data to the database, it doesn't call the Brand Profiler Worker
+ */
 export const createBrandProfile = async (
   brandId: string,
   domain: string,
@@ -287,6 +327,7 @@ export const createBrandProfile = async (
   } = {}
 ) => {
   try {
+    // This endpoint just saves to database, doesn't generate
     const response = await apiClient.post('/api/brand-profile', {
       brand_id: brandId,
       domain,

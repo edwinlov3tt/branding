@@ -1215,6 +1215,165 @@ app.post('/api/brand-profile', async (req, res) => {
   }
 });
 
+// POST - Generate brand profile using Brand Profiler Worker
+app.post('/api/generate-brand-profile', async (req, res) => {
+  try {
+    const { brand_id, domain, includeReviews, maxPages, reviewIds } = req.body;
+
+    if (!brand_id || !domain) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id and domain are required'
+      });
+    }
+
+    console.log(`🤖 Generating brand profile for: ${domain}`);
+
+    // Call Brand Profiler Worker
+    const workerUrl = 'https://brand-profiler.edwin-6f1.workers.dev/brand-profile';
+    const startResponse = await axios.post(workerUrl, {
+      domain,
+      includeReviews: includeReviews !== false,
+      maxPages: maxPages || 15,
+      reviewIds: reviewIds || {}
+    }, {
+      timeout: 10000 // 10 second timeout for job creation
+    });
+
+    const { jobId, status } = startResponse.data;
+
+    if (!jobId) {
+      throw new Error('No job ID returned from Brand Profiler Worker');
+    }
+
+    console.log(`✅ Brand profiling job started: ${jobId}`);
+
+    // Poll for results (max 20 attempts = 100 seconds)
+    let attempts = 0;
+    const maxAttempts = 20;
+    const pollInterval = 5000; // 5 seconds
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      attempts++;
+
+      console.log(`⏳ Polling attempt ${attempts}/${maxAttempts}...`);
+
+      const statusResponse = await axios.get(
+        `${workerUrl.replace('/brand-profile', '')}/brand-profile/${jobId}`,
+        { timeout: 10000 }
+      );
+
+      const jobStatus = statusResponse.data;
+
+      if (jobStatus.status === 'completed') {
+        console.log('✅ Brand profile generation completed!');
+
+        const brandProfile = jobStatus.brandProfile;
+
+        // Save to database
+        await pool.query(
+          `INSERT INTO brand_profiles (
+            brand_id, profile_status, brand_name, tagline, story, mission, positioning,
+            value_props, personality, tone_sliders, lexicon_preferred, lexicon_avoid,
+            primary_audience, audience_needs, audience_pain_points, sentence_length,
+            paragraph_style, formatting_guidelines, writing_avoid, pages_crawled,
+            reviews_analyzed, review_sources, raw_response
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+          ON CONFLICT (brand_id) DO UPDATE SET
+            profile_status = $2,
+            brand_name = $3,
+            tagline = $4,
+            story = $5,
+            mission = $6,
+            positioning = $7,
+            value_props = $8,
+            personality = $9,
+            tone_sliders = $10,
+            lexicon_preferred = $11,
+            lexicon_avoid = $12,
+            primary_audience = $13,
+            audience_needs = $14,
+            audience_pain_points = $15,
+            sentence_length = $16,
+            paragraph_style = $17,
+            formatting_guidelines = $18,
+            writing_avoid = $19,
+            pages_crawled = $20,
+            reviews_analyzed = $21,
+            review_sources = $22,
+            raw_response = $23,
+            updated_at = CURRENT_TIMESTAMP
+          RETURNING *`,
+          [
+            brand_id,
+            'completed',
+            brandProfile.brand?.name || null,
+            brandProfile.brand?.tagline || null,
+            brandProfile.brand?.story || null,
+            brandProfile.brand?.mission || null,
+            brandProfile.brand?.positioning || null,
+            JSON.stringify(brandProfile.brand?.valueProps || []),
+            JSON.stringify(brandProfile.voice?.personality || []),
+            JSON.stringify(brandProfile.voice?.toneSliders || {}),
+            JSON.stringify(brandProfile.voice?.lexicon?.preferred || []),
+            JSON.stringify(brandProfile.voice?.lexicon?.avoid || []),
+            brandProfile.audience?.primary || null,
+            JSON.stringify(brandProfile.audience?.needs || []),
+            JSON.stringify(brandProfile.audience?.painPoints || []),
+            brandProfile.writingGuide?.sentenceLength || null,
+            brandProfile.writingGuide?.paragraphStyle || null,
+            brandProfile.writingGuide?.formatting || null,
+            JSON.stringify(brandProfile.writingGuide?.avoid || []),
+            jobStatus.insights?.pagesCrawled || 0,
+            jobStatus.insights?.reviewsAnalyzed || 0,
+            JSON.stringify(jobStatus.insights?.sources || {}),
+            JSON.stringify(jobStatus)
+          ]
+        );
+
+        console.log('✅ Brand profile saved to database');
+
+        return res.json({
+          success: true,
+          data: {
+            jobId,
+            brandProfile,
+            insights: jobStatus.insights
+          }
+        });
+      } else if (jobStatus.status === 'failed') {
+        console.error('❌ Brand profiling job failed:', jobStatus.error);
+        throw new Error(jobStatus.error || 'Brand profiling failed');
+      }
+
+      // Still processing, continue polling
+      console.log(`⏳ Status: ${jobStatus.status}, progress:`, jobStatus.progress);
+    }
+
+    // Timeout after max attempts
+    throw new Error('Brand profiling timeout - job did not complete in time');
+
+  } catch (error) {
+    console.error('Error generating brand profile:', error);
+
+    // Provide helpful error messages
+    let errorMessage = 'Failed to generate brand profile';
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = 'Brand Profiler Worker timeout';
+    } else if (error.response?.status === 404) {
+      errorMessage = 'Brand Profiler Worker not found - check worker URL';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: errorMessage
+    });
+  }
+});
+
 // Brand Images endpoints
 // GET - Fetch brand images by brand_id
 app.get('/api/brand-images', async (req, res) => {

@@ -9,9 +9,8 @@ import type { BrandExtractResponse } from '@/types';
 import {
   createBrand,
   saveBrandAssets,
-  createBrandProfile
+  generateBrandProfile
 } from '@/services/api/brandService';
-import { scrapeContentOnly } from '@/services/api/contentScraperService';
 import { useBrand } from '@/contexts/BrandContext';
 import { generateBrandUrl } from '@/utils/brandIdentifiers';
 import './BrandOnboarding.css';
@@ -40,12 +39,6 @@ const BrandOnboarding = () => {
     name: string;
     description: string;
   } | null>(null);
-  const [scrapedContent, setScrapedContent] = useState<{
-    title: string;
-    description: string;
-    text: string;
-    truncated: boolean;
-  } | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -64,64 +57,14 @@ const BrandOnboarding = () => {
   const handleBrandExtracted = async (data: BrandExtractResponse) => {
     setExtractedData(data);
 
-    // Scrape content and call Brand Profiler API in parallel
+    // Brand Profiler Worker will be called during save (Step 4)
+    // For now, just extract basic info from the extracted data
     if (data.brand.url) {
-      setIsLoadingProfile(true);
-
-      try {
-        // Start both operations in parallel
-        const [contentResult, profileResult] = await Promise.allSettled([
-          // 1. Scrape website content using Cloudflare Worker
-          scrapeContentOnly(data.brand.url).catch(error => {
-            console.error('[Onboarding] ⚠️ Content scraping failed:', error);
-            return null;
-          }),
-
-          // 2. Call Brand Profiler API
-          createBrandProfile('temp-id', data.brand.url, {
-            includeReviews: false,
-            maxPages: 5,
-            mode: 'sync'
-          }).catch(error => {
-            console.error('[Onboarding] ⚠️ Brand profiler failed:', error);
-            return null;
-          })
-        ]);
-
-        // Process scraped content
-        if (contentResult.status === 'fulfilled' && contentResult.value) {
-          console.log('[Onboarding] ✅ Content scraped successfully');
-          console.log('[Onboarding] Content length:', contentResult.value.text.length, 'chars');
-          setScrapedContent(contentResult.value);
-        }
-
-        // Process brand profile data
-        if (profileResult.status === 'fulfilled' && profileResult.value?.success) {
-          const profileResponse = profileResult.value;
-          if (profileResponse.data?.brandProfile) {
-            const profile = profileResponse.data.brandProfile;
-            setBrandProfileData({
-              name: profile.brand?.name || '',
-              description: profile.brand?.positioning || profile.brand?.mission || ''
-            });
-            console.log('[Onboarding] ✅ Brand profile data fetched');
-          }
-        }
-
-        // If brand profiler failed but we have scraped content, use that as fallback
-        if ((!brandProfileData || !brandProfileData.name) && scrapedContent) {
-          console.log('[Onboarding] Using scraped content as fallback for brand data');
-          setBrandProfileData({
-            name: scrapedContent.title || '',
-            description: scrapedContent.description || ''
-          });
-        }
-      } catch (error: any) {
-        console.error('[Onboarding] ⚠️ Error during content/profile fetching:', error);
-        // Don't block onboarding
-      } finally {
-        setIsLoadingProfile(false);
-      }
+      // Use extracted metadata as initial values
+      setBrandProfileData({
+        name: data.brand.metadata?.title || '',
+        description: data.brand.metadata?.description || ''
+      });
     }
 
     setCurrentStep(3);
@@ -229,33 +172,43 @@ const BrandOnboarding = () => {
       }
 
       // ============================================
-      // STEP 3: Create Brand Profile (NON-CRITICAL - can fail)
+      // STEP 3: Generate Brand Profile using Brand Profiler Worker (NON-CRITICAL - can fail)
       // ============================================
       if (brandWebsite) {
         try {
-          console.log('[Onboarding] Step 3: Creating brand profile...');
-          // Use sync mode for faster onboarding (25-30s instead of 60s)
-          const profileResponse = await createBrandProfile(brandId, brandWebsite, {
-            includeReviews: false, // Skip reviews for faster onboarding
-            maxPages: 5,
-            mode: 'sync'
+          console.log('[Onboarding] Step 3: Generating complete brand profile...');
+          console.log('[Onboarding] This will analyze website content, extract tone/voice, and create writing guide');
+
+          // Call Brand Profiler Worker - it will scrape, analyze, and save everything
+          const profileResponse = await generateBrandProfile(brandId, brandWebsite, {
+            includeReviews: false, // Skip reviews for faster onboarding (60-80s with reviews)
+            maxPages: 15 // Analyze 15 pages for comprehensive profile
           });
 
           if (profileResponse.success) {
-            console.log('[Onboarding] ✅ Brand profile created successfully');
+            console.log('[Onboarding] ✅ Brand profile generated successfully!');
+            console.log('[Onboarding] Generated:', {
+              personality: profileResponse.data?.brandProfile?.voice?.personality,
+              toneSliders: profileResponse.data?.brandProfile?.voice?.toneSliders,
+              sentenceLength: profileResponse.data?.brandProfile?.writingGuide?.sentenceLength,
+              pagesCrawled: profileResponse.data?.insights?.pagesCrawled
+            });
           } else {
-            console.log('[Onboarding] ⚠️ Brand profile creation returned non-success:', profileResponse);
+            console.log('[Onboarding] ⚠️ Brand profile generation returned non-success');
             warnings.push('Brand profile could not be generated. You can generate it later from the Brand Profile tab.');
           }
         } catch (error: any) {
-          console.error('[Onboarding] ⚠️ Failed to create brand profile:', error);
-          // Check if it's a timeout or API unavailable
+          console.error('[Onboarding] ⚠️ Failed to generate brand profile:', error);
+
+          // Provide helpful error messages based on error type
           if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-            warnings.push('Brand profile generation timed out. You can generate it later from the Brand Profile tab.');
+            warnings.push('Brand profile generation timed out (this can take 60-100 seconds). You can generate it later from the Brand Profile tab.');
           } else if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-            warnings.push('Brand Profiler API is currently unavailable. You can generate the profile later.');
+            warnings.push('Brand Profiler Worker is currently unavailable. You can generate the profile later.');
+          } else if (error.response?.status === 404) {
+            warnings.push('Brand Profiler Worker not found. Please check worker deployment.');
           } else {
-            warnings.push('Brand profile could not be generated. You can try again later from the Brand Profile tab.');
+            warnings.push(`Brand profile generation failed: ${error.message || 'Unknown error'}. You can try again later from the Brand Profile tab.`);
           }
         }
       }
