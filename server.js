@@ -1356,20 +1356,34 @@ app.post('/api/generate-brand-profile', async (req, res) => {
 
   } catch (error) {
     console.error('Error generating brand profile:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      data: error.response?.data,
+      url: error.config?.url
+    });
 
     // Provide helpful error messages
     let errorMessage = 'Failed to generate brand profile';
     if (error.code === 'ECONNABORTED') {
       errorMessage = 'Brand Profiler Worker timeout';
     } else if (error.response?.status === 404) {
-      errorMessage = 'Brand Profiler Worker not found - check worker URL';
+      errorMessage = `Brand Profiler Worker returned 404. Worker URL: ${error.config?.url}`;
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      errorMessage = `Cannot connect to Brand Profiler Worker at ${error.config?.url}`;
     } else if (error.message) {
       errorMessage = error.message;
     }
 
     res.status(500).json({
       success: false,
-      error: errorMessage
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? {
+        code: error.code,
+        status: error.response?.status,
+        url: error.config?.url
+      } : undefined
     });
   }
 });
