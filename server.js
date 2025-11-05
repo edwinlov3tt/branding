@@ -1232,7 +1232,8 @@ app.post('/api/generate-brand-profile', async (req, res) => {
     console.log(`🤖 Generating brand profile for: ${domain}`);
 
     // Call Brand Profiler Worker
-    const workerUrl = 'https://brand-profiler.edwin-6f1.workers.dev/brand-profile';
+    const workerBaseUrl = 'https://brand-profiler.edwin-6f1.workers.dev';
+    const workerUrl = `${workerBaseUrl}/brand-profile`;
     console.log('[generate-brand-profile] Calling Brand Profiler Worker:', workerUrl);
 
     const startResponse = await axios.post(workerUrl, {
@@ -1265,10 +1266,10 @@ app.post('/api/generate-brand-profile', async (req, res) => {
 
       console.log(`⏳ Polling attempt ${attempts}/${maxAttempts}...`);
 
-      const statusResponse = await axios.get(
-        `${workerUrl.replace('/brand-profile', '')}/brand-profile/${jobId}`,
-        { timeout: 10000 }
-      );
+      const pollUrl = `${workerBaseUrl}/brand-profile/${jobId}`;
+      console.log(`[generate-brand-profile] Polling URL: ${pollUrl}`);
+
+      const statusResponse = await axios.get(pollUrl, { timeout: 10000 });
 
       const jobStatus = statusResponse.data;
 
