@@ -279,7 +279,7 @@ export const getBrandProfile = async (brandId: string) => {
 
 /**
  * Generate a complete brand profile using the Brand Profiler Worker
- * This calls the worker, polls for completion, and saves to database
+ * This starts the job, polls for completion, and saves to database
  */
 export const generateBrandProfile = async (
   brandId: string,
@@ -295,18 +295,61 @@ export const generateBrandProfile = async (
   } = {}
 ) => {
   try {
-    console.log('[BrandService] Generating brand profile for:', domain)
-    const response = await apiClient.post('/api/generate-brand-profile', {
+    console.log('[BrandService] Starting brand profile generation for:', domain)
+
+    // Step 1: Start the job
+    const startResponse = await apiClient.post('/api/generate-brand-profile', {
       brand_id: brandId,
       domain,
       includeReviews: options.includeReviews !== false,
       maxPages: options.maxPages || 15,
       reviewIds: options.reviewIds || {}
     }, {
-      timeout: 120000 // 2 minute timeout (includes polling)
+      timeout: 15000 // 15 second timeout for job creation
     })
-    console.log('[BrandService] ✅ Brand profile generated successfully')
-    return response.data
+
+    const { jobId, estimatedTime } = startResponse.data.data
+    console.log(`[BrandService] Job started: ${jobId}, estimated time: ${estimatedTime}s`)
+
+    // Step 2: Poll for completion
+    const maxAttempts = 24 // 24 attempts × 5 seconds = 120 seconds max
+    const pollInterval = 5000 // 5 seconds
+    let attempts = 0
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval))
+      attempts++
+
+      console.log(`[BrandService] Polling attempt ${attempts}/${maxAttempts}...`)
+
+      const statusResponse = await apiClient.get(`/api/brand-profile-status/${jobId}?brand_id=${brandId}`, {
+        timeout: 15000
+      })
+
+      const { status, data, error } = statusResponse.data
+
+      if (status === 'completed') {
+        console.log('[BrandService] ✅ Brand profile generated and saved successfully')
+        return {
+          success: true,
+          data: {
+            jobId,
+            brandProfile: data.brandProfile,
+            insights: data.insights
+          }
+        }
+      } else if (status === 'failed') {
+        console.error('[BrandService] ❌ Brand profile generation failed:', error)
+        throw new Error(error || 'Brand profiling failed')
+      }
+
+      // Still processing, continue polling
+      console.log(`[BrandService] Status: ${status}, progress:`, data?.progress)
+    }
+
+    // Timeout after max attempts
+    throw new Error('Brand profiling timeout - job did not complete within 2 minutes')
+
   } catch (error) {
     console.error('[BrandService] Failed to generate brand profile:', error)
     throw error
