@@ -1220,6 +1220,8 @@ app.post('/api/generate-brand-profile', async (req, res) => {
   try {
     const { brand_id, domain, includeReviews, maxPages, reviewIds } = req.body;
 
+    console.log('[generate-brand-profile] Request received:', { brand_id, domain, includeReviews, maxPages });
+
     if (!brand_id || !domain) {
       return res.status(400).json({
         success: false,
@@ -1231,6 +1233,8 @@ app.post('/api/generate-brand-profile', async (req, res) => {
 
     // Call Brand Profiler Worker
     const workerUrl = 'https://brand-profiler.edwin-6f1.workers.dev/brand-profile';
+    console.log('[generate-brand-profile] Calling Brand Profiler Worker:', workerUrl);
+
     const startResponse = await axios.post(workerUrl, {
       domain,
       includeReviews: includeReviews !== false,
@@ -1239,6 +1243,8 @@ app.post('/api/generate-brand-profile', async (req, res) => {
     }, {
       timeout: 10000 // 10 second timeout for job creation
     });
+
+    console.log('[generate-brand-profile] Worker response:', startResponse.data);
 
     const { jobId, status } = startResponse.data;
 
