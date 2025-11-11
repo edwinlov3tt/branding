@@ -532,6 +532,10 @@ app.get('/status-old', async (req, res) => {
 });
 
 // Brand extraction endpoint - proxy to real API
+// In-memory job storage for brand extraction (production should use Redis/database)
+const extractionJobs = new Map();
+
+// POST - Start brand extraction (returns immediately with jobId)
 app.post('/api/extract-brand', async (req, res) => {
   try {
     const { url, includeScreenshot = true } = req.body;
@@ -553,9 +557,64 @@ app.post('/api/extract-brand', async (req, res) => {
       });
     }
 
-    console.log(`🔍 Extracting brand data for: ${url} (screenshot: ${includeScreenshot})`);
+    // Generate jobId
+    const jobId = `extract-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Call the real API
+    console.log(`🔍 [${jobId}] Starting brand extraction for: ${url}`);
+
+    // Store job in memory with initial status
+    extractionJobs.set(jobId, {
+      jobId,
+      url,
+      status: 'processing',
+      startedAt: new Date().toISOString(),
+      progress: 0
+    });
+
+    // Start extraction in background (don't await)
+    performBrandExtraction(jobId, url, includeScreenshot).catch(error => {
+      console.error(`❌ [${jobId}] Background extraction failed:`, error.message);
+      extractionJobs.set(jobId, {
+        ...extractionJobs.get(jobId),
+        status: 'failed',
+        error: error.message,
+        completedAt: new Date().toISOString()
+      });
+    });
+
+    // Return immediately with jobId
+    return res.json({
+      success: true,
+      data: {
+        jobId,
+        status: 'processing',
+        estimatedTime: 45,
+        statusUrl: `/api/extract-brand-status/${jobId}`
+      }
+    });
+
+  } catch (error) {
+    console.error('Failed to start brand extraction:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start brand extraction'
+    });
+  }
+});
+
+// Background function to perform extraction
+async function performBrandExtraction(jobId, url, includeScreenshot) {
+  try {
+    console.log(`⚙️ [${jobId}] Calling extraction API...`);
+
+    // Update progress
+    const job = extractionJobs.get(jobId);
+    if (job) {
+      job.progress = 25;
+      extractionJobs.set(jobId, job);
+    }
+
+    // Call the real API with extended timeout
     const response = await axios.post('https://gtm.edwinlovett.com/api/extract-brand', {
       url,
       includeScreenshot
@@ -564,41 +623,97 @@ app.post('/api/extract-brand', async (req, res) => {
         'Content-Type': 'application/json',
         'User-Agent': 'Branding-App/1.0'
       },
-      timeout: 65000 // 65 second timeout
+      timeout: 120000 // 2 minute timeout for background job
     });
 
-    console.log(`✅ Brand extraction completed for: ${new URL(url).hostname}`);
+    console.log(`✅ [${jobId}] Brand extraction completed`);
 
-    // Return the real API response
-    res.json(response.data);
+    // Store completed result
+    extractionJobs.set(jobId, {
+      jobId,
+      url,
+      status: 'completed',
+      progress: 100,
+      startedAt: job?.startedAt,
+      completedAt: new Date().toISOString(),
+      result: response.data
+    });
+
+    // Clean up after 10 minutes
+    setTimeout(() => {
+      extractionJobs.delete(jobId);
+      console.log(`🧹 [${jobId}] Cleaned up job data`);
+    }, 10 * 60 * 1000);
 
   } catch (error) {
-    console.error('Brand extraction error:', error.message);
+    console.error(`❌ [${jobId}] Extraction failed:`, error.message);
+
+    let errorMessage = 'Failed to extract brand data';
 
     if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-      return res.status(503).json({
+      errorMessage = 'Brand extraction service is currently unavailable';
+    } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      errorMessage = 'Brand extraction timed out. The website may be slow or complex.';
+    } else if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    }
+
+    extractionJobs.set(jobId, {
+      jobId,
+      url,
+      status: 'failed',
+      error: errorMessage,
+      completedAt: new Date().toISOString()
+    });
+
+    throw error;
+  }
+}
+
+// GET - Poll brand extraction status
+app.get('/api/extract-brand-status/:jobId', async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    const job = extractionJobs.get(jobId);
+
+    if (!job) {
+      return res.status(404).json({
         success: false,
-        error: 'Brand extraction service is currently unavailable. Please try again later.'
+        error: 'Job not found or expired'
       });
     }
 
-    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      return res.status(504).json({
+    if (job.status === 'completed') {
+      return res.json({
+        success: true,
+        status: 'completed',
+        data: job.result
+      });
+    } else if (job.status === 'failed') {
+      return res.json({
         success: false,
-        error: 'Brand extraction timed out. The website may be slow or complex. Please try again.'
+        status: 'failed',
+        error: job.error
+      });
+    } else {
+      // Still processing
+      return res.json({
+        success: true,
+        status: 'processing',
+        data: {
+          jobId,
+          progress: job.progress,
+          url: job.url
+        }
       });
     }
 
-    if (error.response) {
-      return res.status(error.response.status).json({
-        success: false,
-        error: error.response.data?.error || 'Failed to extract brand data'
-      });
-    }
-
+  } catch (error) {
+    console.error('Error checking extraction status:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to extract brand data'
+      error: 'Failed to check extraction status'
     });
   }
 });
@@ -1211,6 +1326,151 @@ app.post('/api/brand-profile', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to save brand profile'
+    });
+  }
+});
+
+// PUT - Update brand profile (for manual edits from frontend)
+app.put('/api/brand-profile', async (req, res) => {
+  try {
+    const {
+      brand_id,
+      brand_name,
+      tagline,
+      story,
+      mission,
+      positioning,
+      value_props,
+      personality,
+      tone_sliders,
+      lexicon_preferred,
+      lexicon_avoid,
+      primary_audience,
+      audience_needs,
+      audience_pain_points,
+      sentence_length,
+      paragraph_style,
+      formatting_guidelines,
+      writing_avoid
+    } = req.body;
+
+    if (!brand_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'brand_id is required'
+      });
+    }
+
+    // Build dynamic update query only for provided fields
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (brand_name !== undefined) {
+      updates.push(`brand_name = $${paramCount++}`);
+      values.push(brand_name);
+    }
+    if (tagline !== undefined) {
+      updates.push(`tagline = $${paramCount++}`);
+      values.push(tagline);
+    }
+    if (story !== undefined) {
+      updates.push(`story = $${paramCount++}`);
+      values.push(story);
+    }
+    if (mission !== undefined) {
+      updates.push(`mission = $${paramCount++}`);
+      values.push(mission);
+    }
+    if (positioning !== undefined) {
+      updates.push(`positioning = $${paramCount++}`);
+      values.push(positioning);
+    }
+    if (value_props !== undefined) {
+      updates.push(`value_props = $${paramCount++}`);
+      values.push(JSON.stringify(value_props));
+    }
+    if (personality !== undefined) {
+      updates.push(`personality = $${paramCount++}`);
+      values.push(JSON.stringify(personality));
+    }
+    if (tone_sliders !== undefined) {
+      updates.push(`tone_sliders = $${paramCount++}`);
+      values.push(JSON.stringify(tone_sliders));
+    }
+    if (lexicon_preferred !== undefined) {
+      updates.push(`lexicon_preferred = $${paramCount++}`);
+      values.push(JSON.stringify(lexicon_preferred));
+    }
+    if (lexicon_avoid !== undefined) {
+      updates.push(`lexicon_avoid = $${paramCount++}`);
+      values.push(JSON.stringify(lexicon_avoid));
+    }
+    if (primary_audience !== undefined) {
+      updates.push(`primary_audience = $${paramCount++}`);
+      values.push(primary_audience);
+    }
+    if (audience_needs !== undefined) {
+      updates.push(`audience_needs = $${paramCount++}`);
+      values.push(JSON.stringify(audience_needs));
+    }
+    if (audience_pain_points !== undefined) {
+      updates.push(`audience_pain_points = $${paramCount++}`);
+      values.push(JSON.stringify(audience_pain_points));
+    }
+    if (sentence_length !== undefined) {
+      updates.push(`sentence_length = $${paramCount++}`);
+      values.push(sentence_length);
+    }
+    if (paragraph_style !== undefined) {
+      updates.push(`paragraph_style = $${paramCount++}`);
+      values.push(paragraph_style);
+    }
+    if (formatting_guidelines !== undefined) {
+      updates.push(`formatting_guidelines = $${paramCount++}`);
+      values.push(formatting_guidelines);
+    }
+    if (writing_avoid !== undefined) {
+      updates.push(`writing_avoid = $${paramCount++}`);
+      values.push(JSON.stringify(writing_avoid));
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No fields provided to update'
+      });
+    }
+
+    // Always update the updated_at timestamp
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(brand_id); // Last parameter for WHERE clause
+
+    const query = `
+      UPDATE brand_profiles
+      SET ${updates.join(', ')}
+      WHERE brand_id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Brand profile not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating brand profile:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update brand profile'
     });
   }
 });

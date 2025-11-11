@@ -25,47 +25,95 @@ export const checkExternalApiHealth = async (): Promise<boolean> => {
 // Enhanced brand extraction with new API
 export const extractBrandData = async (url: string, includeScreenshot: boolean = true): Promise<BrandExtractResponse> => {
   try {
-    const response = await apiClient.post<BrandExtractResponse>('/api/extract-brand', {
+    console.log('[BrandService] Starting brand extraction for:', url);
+
+    // Step 1: Start the extraction job
+    const startResponse = await apiClient.post('/api/extract-brand', {
       url,
       includeScreenshot
-    })
+    }, {
+      timeout: 10000 // Short timeout for starting job
+    });
 
-    if (response.data.success && response.data.brand) {
-      // Fill in missing WCAG contrast data if needed
-      const enhancedBrand = {
-        ...response.data.brand,
-        colors: {
-          ...response.data.brand.colors,
-          palette: response.data.brand.colors.palette.map(color => ({
-            ...color,
-            wcagContrast: color.wcagContrast || calculateWCAGContrast(color.hex)
-          }))
-        }
-      }
-
-      return {
-        ...response.data,
-        brand: enhancedBrand
-      }
+    if (!startResponse.data.success || !startResponse.data.data?.jobId) {
+      throw new Error('Failed to start brand extraction');
     }
 
-    throw new Error('Failed to extract brand data')
+    const { jobId, estimatedTime } = startResponse.data.data;
+    console.log(`[BrandService] Extraction job started: ${jobId}, estimated time: ${estimatedTime}s`);
+
+    // Step 2: Poll for completion
+    const maxAttempts = 30; // 30 × 3s = 90s max wait time
+    const pollInterval = 3000; // Poll every 3 seconds
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      attempts++;
+
+      console.log(`[BrandService] Polling extraction status (attempt ${attempts}/${maxAttempts})...`);
+
+      const statusResponse = await apiClient.get(`/api/extract-brand-status/${jobId}`, {
+        timeout: 10000
+      });
+
+      const { status, data, error } = statusResponse.data;
+
+      if (status === 'completed' && data) {
+        console.log('[BrandService] ✅ Extraction completed successfully');
+
+        // Fill in missing WCAG contrast data if needed
+        if (data.success && data.brand) {
+          const enhancedBrand = {
+            ...data.brand,
+            colors: {
+              ...data.brand.colors,
+              palette: data.brand.colors.palette.map((color: any) => ({
+                ...color,
+                wcagContrast: color.wcagContrast || calculateWCAGContrast(color.hex)
+              }))
+            }
+          };
+
+          return {
+            ...data,
+            brand: enhancedBrand
+          };
+        }
+
+        return data;
+      } else if (status === 'failed') {
+        console.error('[BrandService] ❌ Extraction failed:', error);
+        throw new Error(error || 'Brand extraction failed');
+      }
+
+      // Still processing, continue polling
+      console.log(`[BrandService] Still processing... (${data?.progress || 0}%)`);
+    }
+
+    throw new Error('Brand extraction timed out - job did not complete within 90 seconds');
+
   } catch (error: any) {
-    // Check for other common errors
+    console.error('[BrandService] Brand extraction error:', error);
+
+    // Check for specific error types
     if (error.response?.status === 404) {
-      throw new Error('Brand extraction endpoint not found. Please check the API configuration.')
+      throw new Error('Brand extraction endpoint not found. Please check the API configuration.');
     }
 
     if (error.response?.status === 500) {
-      throw new Error('Server error occurred while extracting brand data. Please try again.')
+      throw new Error('Server error occurred while extracting brand data. Please try again.');
     }
 
     if (error.code === 'ERR_NETWORK' || error.message?.includes('ERR_CONNECTION_REFUSED')) {
-      throw new Error('Unable to connect to brand extraction service. Please check your internet connection and try again.')
+      throw new Error('Unable to connect to brand extraction service. Please check your internet connection and try again.');
     }
 
-    console.error('Brand extraction error:', error)
-    throw new Error(error.response?.data?.message || 'Failed to extract brand data. Please try again.')
+    if (error.message?.includes('timed out')) {
+      throw new Error('Brand extraction is taking longer than expected. Please try again or contact support if the issue persists.');
+    }
+
+    throw new Error(error.response?.data?.error || error.message || 'Failed to extract brand data. Please try again.');
   }
 }
 
@@ -273,6 +321,46 @@ export const getBrandProfile = async (brandId: string) => {
     return response.data
   } catch (error) {
     console.error('Failed to fetch brand profile:', error)
+    throw error
+  }
+}
+
+export const updateBrandProfile = async (
+  brandId: string,
+  updates: {
+    brand_name?: string
+    tagline?: string
+    story?: string
+    mission?: string
+    positioning?: string
+    value_props?: string[]
+    personality?: string[]
+    tone_sliders?: {
+      formal?: number
+      playful?: number
+      premium?: number
+      technical?: number
+      energetic?: number
+    }
+    lexicon_preferred?: string[]
+    lexicon_avoid?: string[]
+    primary_audience?: string
+    audience_needs?: string[]
+    audience_pain_points?: string[]
+    sentence_length?: string
+    paragraph_style?: string
+    formatting_guidelines?: string
+    writing_avoid?: string[]
+  }
+) => {
+  try {
+    const response = await apiClient.put('/api/brand-profile', {
+      brand_id: brandId,
+      ...updates
+    })
+    return response.data
+  } catch (error) {
+    console.error('Failed to update brand profile:', error)
     throw error
   }
 }

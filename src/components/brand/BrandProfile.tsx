@@ -548,7 +548,12 @@ const BrandProfile = () => {
 
         {/* Brand Profile Tab */}
         {activeTab === 'profile' && (
-          <BrandInfo profile={brandProfile} isLoading={isLoadingProfile} />
+          <BrandInfo
+            profile={brandProfile}
+            isLoading={isLoadingProfile}
+            brandId={currentBrand?.id || ''}
+            onUpdate={loadBrandProfileData}
+          />
         )}
 
         {/* Voice & Tone Tab */}
