@@ -17,6 +17,51 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// ============================================
+// Structured Logging Utility
+// ============================================
+const LOG_LEVELS = {
+  INFO: 'INFO',
+  WARN: 'WARN',
+  ERROR: 'ERROR',
+  DEBUG: 'DEBUG'
+};
+
+/**
+ * Structured logger for onboarding failures and important events
+ * Captures: timestamp, level, context, error details, step information
+ */
+function logStructured(level, message, context = {}) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    ...context
+  };
+
+  const logString = JSON.stringify(logEntry);
+
+  // Log to console with appropriate method
+  if (level === LOG_LEVELS.ERROR) {
+    console.error(logString);
+  } else if (level === LOG_LEVELS.WARN) {
+    console.warn(logString);
+  } else {
+    console.log(logString);
+  }
+
+  // In production, you could also send to external logging service
+  // (e.g., Datadog, Sentry, CloudWatch, etc.)
+}
+
+// Convenience methods for different log levels
+const logger = {
+  info: (message, context) => logStructured(LOG_LEVELS.INFO, message, context),
+  warn: (message, context) => logStructured(LOG_LEVELS.WARN, message, context),
+  error: (message, context) => logStructured(LOG_LEVELS.ERROR, message, context),
+  debug: (message, context) => logStructured(LOG_LEVELS.DEBUG, message, context)
+};
+
 // PostgreSQL connection pool
 // Supports both DATABASE_URL (Railway, Heroku) and individual connection params
 const pool = new Pool(
@@ -535,6 +580,119 @@ app.get('/status-old', async (req, res) => {
 // In-memory job storage for brand extraction (production should use Redis/database)
 const extractionJobs = new Map();
 
+// URL deduplication map (normalized URL -> jobId, 1-hour TTL)
+const urlDeduplicationMap = new Map();
+
+// Helper to normalize URL to origin for deduplication
+function normalizeUrl(urlString) {
+  try {
+    const url = new URL(urlString);
+    return url.origin; // e.g., "https://example.com"
+  } catch (error) {
+    return urlString;
+  }
+}
+
+// Helper to cleanup old deduplication entries (1-hour TTL)
+function cleanupDeduplicationMap() {
+  const now = Date.now();
+  const oneHour = 60 * 60 * 1000;
+
+  for (const [url, entry] of urlDeduplicationMap.entries()) {
+    if (now - entry.timestamp > oneHour) {
+      urlDeduplicationMap.delete(url);
+    }
+  }
+}
+
+// Clean up deduplication map every 15 minutes
+setInterval(cleanupDeduplicationMap, 15 * 60 * 1000);
+
+// Helper to detect product/service pages from extraction data
+function detectProductPages(extractionData) {
+  const products = [];
+
+  // Product/service URL patterns to detect
+  const productPatterns = [
+    /\/product[s]?\//i,
+    /\/shop\//i,
+    /\/store\//i,
+    /\/services?\//i,
+    /\/solutions?\//i,
+    /\/offerings?\//i,
+    /\/pricing\//i,
+    /\/plans?\//i,
+    /\/buy\//i,
+    /\/catalog\//i,
+    /\/collection[s]?\//i,
+    /\/category\//i,
+    /\/item[s]?\//i
+  ];
+
+  // Check if extraction returned any crawled pages/links
+  const crawledPages = extractionData?.crawledPages || extractionData?.links || [];
+
+  // Also check the main brand URL itself
+  const mainUrl = extractionData?.brand?.url || '';
+  if (mainUrl) {
+    // Check if the main URL matches product patterns
+    const isProductUrl = productPatterns.some(pattern => pattern.test(mainUrl));
+    if (isProductUrl) {
+      products.push({
+        title: extractionData?.brand?.metadata?.title || 'Main Product Page',
+        url: mainUrl,
+        excerpt: extractionData?.brand?.metadata?.description || '',
+        type: 'main'
+      });
+    }
+  }
+
+  // Scan through crawled pages for product URLs
+  for (const page of crawledPages) {
+    const pageUrl = typeof page === 'string' ? page : page.url || page.href || '';
+    const pageTitle = typeof page === 'object' ? (page.title || '') : '';
+    const pageDescription = typeof page === 'object' ? (page.description || page.excerpt || '') : '';
+
+    if (!pageUrl) continue;
+
+    // Check if URL matches product patterns
+    const isProductUrl = productPatterns.some(pattern => pattern.test(pageUrl));
+
+    if (isProductUrl) {
+      // Extract product name from URL or title
+      const urlParts = pageUrl.split('/').filter(p => p);
+      const lastPart = urlParts[urlParts.length - 1] || '';
+      const productName = pageTitle || lastPart.replace(/-/g, ' ').replace(/_/g, ' ');
+
+      products.push({
+        title: productName.charAt(0).toUpperCase() + productName.slice(1),
+        url: pageUrl,
+        excerpt: pageDescription.substring(0, 200),
+        type: 'discovered'
+      });
+
+      // Limit to 20 discovered products to avoid overwhelming the user
+      if (products.length >= 20) break;
+    }
+  }
+
+  // If no products found from URL patterns, generate suggestions based on industry
+  if (products.length === 0) {
+    const brandName = extractionData?.brand?.metadata?.title || '';
+    const description = extractionData?.brand?.metadata?.description || '';
+
+    // Add a generic "Main Product/Service" suggestion
+    products.push({
+      title: `${brandName} - Main Offering`,
+      url: mainUrl,
+      excerpt: description.substring(0, 200),
+      type: 'suggested'
+    });
+  }
+
+  return products;
+}
+
 // POST - Start brand extraction (returns immediately with jobId)
 app.post('/api/extract-brand', async (req, res) => {
   try {
@@ -557,8 +715,37 @@ app.post('/api/extract-brand', async (req, res) => {
       });
     }
 
+    // Check for duplicate extraction (deduplicate by normalized URL)
+    const normalizedUrl = normalizeUrl(url);
+    const existingEntry = urlDeduplicationMap.get(normalizedUrl);
+
+    if (existingEntry) {
+      const existingJob = extractionJobs.get(existingEntry.jobId);
+
+      // If job still exists and is not failed, return existing jobId
+      if (existingJob && existingJob.status !== 'failed') {
+        console.log(`♻️ Reusing existing extraction job for ${normalizedUrl}: ${existingEntry.jobId}`);
+        return res.status(409).json({
+          success: true,
+          data: {
+            jobId: existingEntry.jobId,
+            status: existingJob.status,
+            estimatedTime: 45,
+            statusUrl: `/api/extract-brand-status/${existingEntry.jobId}`,
+            note: 'Using existing extraction job for this URL'
+          }
+        });
+      }
+    }
+
     // Generate jobId
     const jobId = `extract-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Store in deduplication map
+    urlDeduplicationMap.set(normalizedUrl, {
+      jobId,
+      timestamp: Date.now()
+    });
 
     console.log(`🔍 [${jobId}] Starting brand extraction for: ${url}`);
 
@@ -607,8 +794,8 @@ async function performBrandExtraction(jobId, url, includeScreenshot) {
   try {
     console.log(`⚙️ [${jobId}] Calling extraction API...`);
 
-    // Update progress
-    const job = extractionJobs.get(jobId);
+    // Update progress: 25% - Starting extraction
+    let job = extractionJobs.get(jobId);
     if (job) {
       job.progress = 25;
       extractionJobs.set(jobId, job);
@@ -623,12 +810,32 @@ async function performBrandExtraction(jobId, url, includeScreenshot) {
         'Content-Type': 'application/json',
         'User-Agent': 'Branding-App/1.0'
       },
-      timeout: 120000 // 2 minute timeout for background job
+      timeout: 120000, // 2 minute timeout for background job
+      onUploadProgress: () => {
+        // 50% - Request sent
+        const job = extractionJobs.get(jobId);
+        if (job && job.progress < 50) {
+          job.progress = 50;
+          extractionJobs.set(jobId, job);
+        }
+      },
+      onDownloadProgress: () => {
+        // 75% - Receiving response
+        const job = extractionJobs.get(jobId);
+        if (job && job.progress < 75) {
+          job.progress = 75;
+          extractionJobs.set(jobId, job);
+        }
+      }
     });
 
     console.log(`✅ [${jobId}] Brand extraction completed`);
 
-    // Store completed result
+    // Detect product/service pages from extraction result
+    const discoveredProducts = detectProductPages(response.data);
+    console.log(`🛍️ [${jobId}] Discovered ${discoveredProducts.length} potential product/service pages`);
+
+    // Store completed result with discovered products
     extractionJobs.set(jobId, {
       jobId,
       url,
@@ -636,7 +843,10 @@ async function performBrandExtraction(jobId, url, includeScreenshot) {
       progress: 100,
       startedAt: job?.startedAt,
       completedAt: new Date().toISOString(),
-      result: response.data
+      result: {
+        ...response.data,
+        discoveredProducts // Add discovered products to result
+      }
     });
 
     // Clean up after 10 minutes
@@ -649,20 +859,43 @@ async function performBrandExtraction(jobId, url, includeScreenshot) {
     console.error(`❌ [${jobId}] Extraction failed:`, error.message);
 
     let errorMessage = 'Failed to extract brand data';
+    let errorCode = 'EXTRACTION_ERROR';
 
     if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-      errorMessage = 'Brand extraction service is currently unavailable';
+      errorMessage = 'Brand extraction service is currently unavailable (503). Please try again later.';
+      errorCode = 'SERVICE_UNAVAILABLE';
     } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      errorMessage = 'Brand extraction timed out. The website may be slow or complex.';
+      errorMessage = 'Brand extraction timed out. The website may be slow or complex. Try manual entry.';
+      errorCode = 'TIMEOUT';
+    } else if (error.response?.status === 404) {
+      errorMessage = 'The website could not be found (404). Please check the URL and try again.';
+      errorCode = 'NOT_FOUND';
+    } else if (error.response?.status === 503) {
+      errorMessage = 'Brand extraction service is temporarily unavailable (503). Please try again in a few moments.';
+      errorCode = 'SERVICE_UNAVAILABLE';
     } else if (error.response?.data?.error) {
       errorMessage = error.response.data.error;
+      errorCode = 'API_ERROR';
     }
+
+    // Structured logging for extraction failures
+    logger.error('Brand extraction failed', {
+      jobId,
+      url,
+      step: 'brand_extraction',
+      errorCode,
+      errorMessage,
+      originalError: error.message,
+      statusCode: error.response?.status,
+      duration: job?.startedAt ? (Date.now() - new Date(job.startedAt).getTime()) / 1000 : null
+    });
 
     extractionJobs.set(jobId, {
       jobId,
       url,
       status: 'failed',
       error: errorMessage,
+      errorCode,
       completedAt: new Date().toISOString()
     });
 
@@ -678,6 +911,13 @@ app.get('/api/extract-brand-status/:jobId', async (req, res) => {
     const job = extractionJobs.get(jobId);
 
     if (!job) {
+      // Log polling for expired/not-found jobs (possible timeout scenario)
+      logger.warn('Polling for non-existent extraction job', {
+        jobId,
+        step: 'extraction_polling',
+        reason: 'job_not_found_or_expired'
+      });
+
       return res.status(404).json({
         success: false,
         error: 'Job not found or expired'
@@ -691,13 +931,35 @@ app.get('/api/extract-brand-status/:jobId', async (req, res) => {
         data: job.result
       });
     } else if (job.status === 'failed') {
+      // Log failed job retrieval
+      logger.warn('Polling returned failed extraction job', {
+        jobId,
+        url: job.url,
+        step: 'extraction_polling',
+        errorCode: job.errorCode,
+        errorMessage: job.error
+      });
+
       return res.json({
         success: false,
         status: 'failed',
         error: job.error
       });
     } else {
-      // Still processing
+      // Still processing - track long-running jobs
+      const duration = job.startedAt ? (Date.now() - new Date(job.startedAt).getTime()) / 1000 : 0;
+
+      if (duration > 60) {
+        // Warn if job is taking longer than 60 seconds
+        logger.warn('Long-running extraction job', {
+          jobId,
+          url: job.url,
+          step: 'extraction_polling',
+          duration,
+          progress: job.progress
+        });
+      }
+
       return res.json({
         success: true,
         status: 'processing',
@@ -711,6 +973,13 @@ app.get('/api/extract-brand-status/:jobId', async (req, res) => {
 
   } catch (error) {
     console.error('Error checking extraction status:', error);
+
+    logger.error('Extraction status check failed', {
+      jobId: req.params.jobId,
+      step: 'extraction_polling',
+      error: error.message
+    });
+
     res.status(500).json({
       success: false,
       error: 'Failed to check extraction status'
@@ -1226,6 +1495,16 @@ app.post('/api/brand-profile', async (req, res) => {
       });
     }
 
+    // Skip database operations for temp brand IDs
+    if (brand_id.startsWith('temp-')) {
+      console.log('[brand-profile] Skipping database operations for temp brand ID:', brand_id);
+      return res.json({
+        success: true,
+        message: 'Temp brand profile received (not saved to database)',
+        data: { brand_id }
+      });
+    }
+
     // Check if profile already exists
     const existing = await pool.query(
       'SELECT id FROM brand_profiles WHERE brand_id = $1',
@@ -1515,16 +1794,20 @@ app.post('/api/generate-brand-profile', async (req, res) => {
 
     console.log(`✅ Brand profiling job started: ${jobId}`);
 
-    // Store job info in database for tracking
-    await pool.query(
-      `INSERT INTO brand_profiles (brand_id, profile_status, raw_response)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (brand_id) DO UPDATE SET
-         profile_status = $2,
-         raw_response = $3,
-         updated_at = CURRENT_TIMESTAMP`,
-      [brand_id, 'processing', JSON.stringify({ jobId, domain, startedAt: new Date().toISOString() })]
-    );
+    // Store job info in database for tracking (ONLY if not a temp brand ID)
+    if (!brand_id.startsWith('temp-')) {
+      await pool.query(
+        `INSERT INTO brand_profiles (brand_id, profile_status, raw_response)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (brand_id) DO UPDATE SET
+           profile_status = $2,
+           raw_response = $3,
+           updated_at = CURRENT_TIMESTAMP`,
+        [brand_id, 'processing', JSON.stringify({ jobId, domain, startedAt: new Date().toISOString() })]
+      );
+    } else {
+      console.log('[generate-brand-profile] Skipping database save for temp brand ID:', brand_id);
+    }
 
     // Return jobId immediately so client can poll for status
     return res.json({
@@ -1547,15 +1830,35 @@ app.post('/api/generate-brand-profile', async (req, res) => {
     });
 
     let errorMessage = 'Failed to start brand profile generation';
+    let errorCode = 'PROFILE_GENERATION_ERROR';
+
     if (error.code === 'ECONNABORTED') {
       errorMessage = 'Brand Profiler Worker timeout';
+      errorCode = 'WORKER_TIMEOUT';
     } else if (error.response?.status === 404) {
       errorMessage = `Brand Profiler Worker not found at ${error.config?.url}`;
+      errorCode = 'WORKER_NOT_FOUND';
+    } else if (error.response?.status === 503) {
+      errorMessage = 'Brand Profiler Worker temporarily unavailable (503)';
+      errorCode = 'WORKER_UNAVAILABLE';
     } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
       errorMessage = `Cannot connect to Brand Profiler Worker`;
+      errorCode = 'WORKER_CONNECTION_FAILED';
     } else if (error.message) {
       errorMessage = error.message;
     }
+
+    // Structured logging for Brand Profiler Worker failures
+    logger.error('Brand Profiler Worker API call failed', {
+      brandId: req.body.brand_id,
+      domain: req.body.domain,
+      step: 'brand_profile_generation',
+      errorCode,
+      errorMessage,
+      originalError: error.message,
+      statusCode: error.response?.status,
+      workerUrl: error.config?.url
+    });
 
     res.status(500).json({
       success: false,
@@ -1593,68 +1896,72 @@ app.get('/api/brand-profile-status/:jobId', async (req, res) => {
 
       const brandProfile = jobStatus.brandProfile;
 
-      // Save to database
-      const dbResult = await pool.query(
-        `INSERT INTO brand_profiles (
-          brand_id, profile_status, brand_name, tagline, story, mission, positioning,
-          value_props, personality, tone_sliders, lexicon_preferred, lexicon_avoid,
-          primary_audience, audience_needs, audience_pain_points, sentence_length,
-          paragraph_style, formatting_guidelines, writing_avoid, pages_crawled,
-          reviews_analyzed, review_sources, raw_response
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
-        ON CONFLICT (brand_id) DO UPDATE SET
-          profile_status = $2,
-          brand_name = $3,
-          tagline = $4,
-          story = $5,
-          mission = $6,
-          positioning = $7,
-          value_props = $8,
-          personality = $9,
-          tone_sliders = $10,
-          lexicon_preferred = $11,
-          lexicon_avoid = $12,
-          primary_audience = $13,
-          audience_needs = $14,
-          audience_pain_points = $15,
-          sentence_length = $16,
-          paragraph_style = $17,
-          formatting_guidelines = $18,
-          writing_avoid = $19,
-          pages_crawled = $20,
-          reviews_analyzed = $21,
-          review_sources = $22,
-          raw_response = $23,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING *`,
-        [
-          brand_id,
-          'completed',
-          brandProfile.brand?.name || null,
-          brandProfile.brand?.tagline || null,
-          brandProfile.brand?.story || null,
-          brandProfile.brand?.mission || null,
-          brandProfile.brand?.positioning || null,
-          JSON.stringify(brandProfile.brand?.valueProps || []),
-          JSON.stringify(brandProfile.voice?.personality || []),
-          JSON.stringify(brandProfile.voice?.toneSliders || {}),
-          JSON.stringify(brandProfile.voice?.lexicon?.preferred || []),
-          JSON.stringify(brandProfile.voice?.lexicon?.avoid || []),
-          brandProfile.audience?.primary || null,
-          JSON.stringify(brandProfile.audience?.needs || []),
-          JSON.stringify(brandProfile.audience?.painPoints || []),
-          brandProfile.writingGuide?.sentenceLength || null,
-          brandProfile.writingGuide?.paragraphStyle || null,
-          brandProfile.writingGuide?.formatting || null,
-          JSON.stringify(brandProfile.writingGuide?.avoid || []),
-          jobStatus.insights?.pagesCrawled || 0,
-          jobStatus.insights?.reviewsAnalyzed || 0,
-          JSON.stringify(jobStatus.insights?.sources || {}),
-          JSON.stringify(jobStatus)
-        ]
-      );
+      // Save to database (ONLY if not a temp brand ID)
+      if (!brand_id.startsWith('temp-')) {
+        const dbResult = await pool.query(
+          `INSERT INTO brand_profiles (
+            brand_id, profile_status, brand_name, tagline, story, mission, positioning,
+            value_props, personality, tone_sliders, lexicon_preferred, lexicon_avoid,
+            primary_audience, audience_needs, audience_pain_points, sentence_length,
+            paragraph_style, formatting_guidelines, writing_avoid, pages_crawled,
+            reviews_analyzed, review_sources, raw_response
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+          ON CONFLICT (brand_id) DO UPDATE SET
+            profile_status = $2,
+            brand_name = $3,
+            tagline = $4,
+            story = $5,
+            mission = $6,
+            positioning = $7,
+            value_props = $8,
+            personality = $9,
+            tone_sliders = $10,
+            lexicon_preferred = $11,
+            lexicon_avoid = $12,
+            primary_audience = $13,
+            audience_needs = $14,
+            audience_pain_points = $15,
+            sentence_length = $16,
+            paragraph_style = $17,
+            formatting_guidelines = $18,
+            writing_avoid = $19,
+            pages_crawled = $20,
+            reviews_analyzed = $21,
+            review_sources = $22,
+            raw_response = $23,
+            updated_at = CURRENT_TIMESTAMP
+          RETURNING *`,
+          [
+            brand_id,
+            'completed',
+            brandProfile.brand?.name || null,
+            brandProfile.brand?.tagline || null,
+            brandProfile.brand?.story || null,
+            brandProfile.brand?.mission || null,
+            brandProfile.brand?.positioning || null,
+            JSON.stringify(brandProfile.brand?.valueProps || []),
+            JSON.stringify(brandProfile.voice?.personality || []),
+            JSON.stringify(brandProfile.voice?.toneSliders || {}),
+            JSON.stringify(brandProfile.voice?.lexicon?.preferred || []),
+            JSON.stringify(brandProfile.voice?.lexicon?.avoid || []),
+            brandProfile.audience?.primary || null,
+            JSON.stringify(brandProfile.audience?.needs || []),
+            JSON.stringify(brandProfile.audience?.painPoints || []),
+            brandProfile.writingGuide?.sentenceLength || null,
+            brandProfile.writingGuide?.paragraphStyle || null,
+            brandProfile.writingGuide?.formatting || null,
+            JSON.stringify(brandProfile.writingGuide?.avoid || []),
+            jobStatus.insights?.pagesCrawled || 0,
+            jobStatus.insights?.reviewsAnalyzed || 0,
+            JSON.stringify(jobStatus.insights?.sources || {}),
+            JSON.stringify(jobStatus)
+          ]
+        );
 
-      console.log('✅ Brand profile saved to database');
+        console.log('✅ Brand profile saved to database');
+      } else {
+        console.log('[brand-profile-status] Skipping database save for temp brand ID:', brand_id);
+      }
 
       return res.json({
         success: true,
@@ -1668,11 +1975,23 @@ app.get('/api/brand-profile-status/:jobId', async (req, res) => {
     } else if (jobStatus.status === 'failed') {
       console.error('❌ Brand profiling job failed:', jobStatus.error);
 
-      // Update status in database
-      await pool.query(
-        `UPDATE brand_profiles SET profile_status = $1, raw_response = $2, updated_at = CURRENT_TIMESTAMP WHERE brand_id = $3`,
-        ['failed', JSON.stringify({ error: jobStatus.error, failedAt: new Date().toISOString() }), brand_id]
-      );
+      // Structured logging for failed brand profile generation
+      logger.error('Brand Profiler Worker job failed', {
+        jobId,
+        brandId: brand_id,
+        step: 'brand_profile_polling',
+        error: jobStatus.error
+      });
+
+      // Update status in database (ONLY if not a temp brand ID)
+      if (!brand_id.startsWith('temp-')) {
+        await pool.query(
+          `UPDATE brand_profiles SET profile_status = $1, raw_response = $2, updated_at = CURRENT_TIMESTAMP WHERE brand_id = $3`,
+          ['failed', JSON.stringify({ error: jobStatus.error, failedAt: new Date().toISOString() }), brand_id]
+        );
+      } else {
+        console.log('[brand-profile-status] Skipping database update for temp brand ID:', brand_id);
+      }
 
       return res.json({
         success: false,
@@ -1680,7 +1999,29 @@ app.get('/api/brand-profile-status/:jobId', async (req, res) => {
         error: jobStatus.error || 'Brand profiling failed'
       });
     } else {
-      // Still processing
+      // Still processing - track long-running jobs
+      const dbProfile = await pool.query(
+        'SELECT raw_response FROM brand_profiles WHERE brand_id = $1',
+        [brand_id]
+      );
+
+      if (dbProfile.rows.length > 0) {
+        const rawResponse = dbProfile.rows[0].raw_response;
+        const startedAt = rawResponse?.startedAt ? new Date(rawResponse.startedAt) : null;
+        const duration = startedAt ? (Date.now() - startedAt.getTime()) / 1000 : 0;
+
+        if (duration > 90) {
+          // Warn if job is taking longer than 90 seconds
+          logger.warn('Long-running brand profile generation', {
+            jobId,
+            brandId: brand_id,
+            step: 'brand_profile_polling',
+            duration,
+            progress: jobStatus.progress
+          });
+        }
+      }
+
       return res.json({
         success: true,
         status: 'processing',
@@ -1693,6 +2034,16 @@ app.get('/api/brand-profile-status/:jobId', async (req, res) => {
 
   } catch (error) {
     console.error('Error checking brand profile status:', error);
+
+    // Structured logging for brand profile polling failures
+    logger.error('Brand profile status check failed', {
+      jobId: req.params.jobId,
+      brandId: req.query.brand_id,
+      step: 'brand_profile_polling',
+      error: error.message,
+      statusCode: error.response?.status
+    });
+
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to check brand profile status'
@@ -2672,6 +3023,7 @@ app.post('/api/target-audiences', async (req, res) => {
       brand_id,
       name,
       description,
+      demographics, // Accept pre-built demographics string
       age_range,
       gender,
       location,
@@ -2695,17 +3047,22 @@ app.post('/api/target-audiences', async (req, res) => {
       });
     }
 
-    // Build demographics text from individual fields
-    const demographicsText = [
-      age_range && `Age: ${age_range}`,
-      gender && `Gender: ${gender}`,
-      location && `Location: ${location}`,
-      income_level && `Income: ${income_level}`,
-      education && `Education: ${education}`,
-      occupation && `Occupation: ${occupation}`,
-      lifestyle && `Lifestyle: ${lifestyle}`,
-      buying_behavior && `Buying Behavior: ${buying_behavior}`
-    ].filter(Boolean).join(' | ');
+    // Build demographics text from individual fields OR use provided demographics string
+    let demographicsText = demographics; // Use provided demographics if available
+
+    // If no demographics string provided, build from individual fields
+    if (!demographicsText && (age_range || gender || location || income_level || education || occupation || lifestyle || buying_behavior)) {
+      demographicsText = [
+        age_range && `Age: ${age_range}`,
+        gender && `Gender: ${gender}`,
+        location && `Location: ${location}`,
+        income_level && `Income: ${income_level}`,
+        education && `Education: ${education}`,
+        occupation && `Occupation: ${occupation}`,
+        lifestyle && `Lifestyle: ${lifestyle}`,
+        buying_behavior && `Buying Behavior: ${buying_behavior}`
+      ].filter(Boolean).join(' | ');
+    }
 
     const result = await pool.query(
       `INSERT INTO target_audiences (brand_id, name, description, demographics, interests, pain_points, goals, budget_range, channels)
