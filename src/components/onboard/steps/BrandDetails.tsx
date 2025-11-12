@@ -3,16 +3,17 @@ import './BrandDetails.css';
 
 interface BrandDetailsProps {
   initialName?: string;
+  initialTagline?: string;
   initialWebsite?: string;
   initialDescription?: string;
   onSave: (details: BrandDetailsData) => void;
   onBack: () => void;
   isSaving: boolean;
-  isLoadingProfile?: boolean;
 }
 
 export interface BrandDetailsData {
   name: string;
+  tagline: string;
   website: string;
   industry: string;
   description: string;
@@ -39,14 +40,15 @@ const industries = [
 
 const BrandDetails = ({
   initialName = '',
+  initialTagline = '',
   initialWebsite = '',
   initialDescription = '',
   onSave,
   onBack,
-  isSaving,
-  isLoadingProfile = false
+  isSaving
 }: BrandDetailsProps) => {
   const [name, setName] = useState(initialName);
+  const [tagline, setTagline] = useState(initialTagline);
   const [website, setWebsite] = useState(initialWebsite);
   const [industry, setIndustry] = useState('');
   const [description, setDescription] = useState(initialDescription);
@@ -59,6 +61,12 @@ const BrandDetails = ({
   }, [initialName]);
 
   useEffect(() => {
+    if (initialTagline && !tagline) {
+      setTagline(initialTagline);
+    }
+  }, [initialTagline]);
+
+  useEffect(() => {
     if (initialDescription && !description) {
       setDescription(initialDescription);
     }
@@ -66,7 +74,7 @@ const BrandDetails = ({
 
   const handleSubmit = () => {
     if (!name) return;
-    onSave({ name, website, industry, description });
+    onSave({ name, tagline, website, industry, description });
   };
 
   return (
@@ -74,9 +82,7 @@ const BrandDetails = ({
       <div className="step-header">
         <h2 className="step-title">Brand Details</h2>
         <p className="step-description">
-          {isLoadingProfile
-            ? 'Loading brand information from your website...'
-            : initialName
+          {initialName
             ? 'Review and confirm your brand details. Fields have been auto-populated from your website.'
             : 'Add additional information about your brand. This will help personalize your experience.'}
         </p>
@@ -95,6 +101,22 @@ const BrandDetails = ({
             onChange={(e) => setName(e.target.value)}
             required
           />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">
+            Tagline
+          </label>
+          <input
+            type="text"
+            className="input"
+            placeholder="Your brand's memorable tagline"
+            value={tagline}
+            onChange={(e) => setTagline(e.target.value)}
+          />
+          <span className="form-hint">
+            A short, catchy phrase that captures your brand's essence
+          </span>
         </div>
 
         <div className="form-group">

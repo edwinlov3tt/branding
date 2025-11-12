@@ -1,29 +1,37 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import MethodSelection from './steps/MethodSelection';
 import BrandExtraction from './steps/BrandExtraction';
+import ConsolidatedLoadingScreen from './steps/ConsolidatedLoadingScreen';
 import AssetReview, { type RemovedAssets } from './steps/AssetReview';
+import AudienceSelection from './steps/AudienceSelection';
+import ProductSelection from './steps/ProductSelection';
 import BrandDetails, { type BrandDetailsData } from './steps/BrandDetails';
-import type { BrandExtractResponse } from '@/types';
+import type { BrandExtractResponse, TargetAudience, OnboardingResults, DiscoverPagesResponse } from '@/types';
 import {
   createBrand,
-  saveBrandAssets,
-  generateBrandProfile
+  saveBrandAssets
 } from '@/services/api/brandService';
+import { apiClient } from '@/services/config/apiConfig';
 import { useBrand } from '@/contexts/BrandContext';
 import { generateBrandUrl } from '@/utils/brandIdentifiers';
 import './BrandOnboarding.css';
 
-type OnboardingStep = 1 | 2 | 3 | 4;
-type ExtractionMethod = 'automatic' | 'manual' | null;
+type OnboardingStep = 1 | 'loading' | 2 | 3 | 4 | 5;
+
+interface DiscoveredProduct {
+  title: string;
+  url: string;
+  excerpt: string;
+  type: 'main' | 'discovered' | 'suggested';
+}
 
 const BrandOnboarding = () => {
   const navigate = useNavigate();
   const { setCurrentBrand } = useBrand();
 
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(1);
-  const [method, setMethod] = useState<ExtractionMethod>(null);
+  const [submittedUrl, setSubmittedUrl] = useState<string>('');
   const [extractedData, setExtractedData] = useState<BrandExtractResponse | null>(null);
   const [removedAssets, setRemovedAssets] = useState<RemovedAssets>({
     colors: [],
@@ -38,50 +46,139 @@ const BrandOnboarding = () => {
   const [brandProfileData, setBrandProfileData] = useState<{
     name: string;
     description: string;
+    tagline?: string;
   } | null>(null);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [brandProfileResponse, setBrandProfileResponse] = useState<any>(null);
+  const [selectedAudiences, setSelectedAudiences] = useState<Array<Omit<TargetAudience, 'id' | 'brand_id' | 'created_at' | 'updated_at'>>>([]);
+  const [discoveredProducts, setDiscoveredProducts] = useState<DiscoveredProduct[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<DiscoveredProduct[]>([]);
+  const [createdBrandId, setCreatedBrandId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Step 1: Method selection
-  const handleMethodSelect = (selectedMethod: 'automatic' | 'manual') => {
-    setMethod(selectedMethod);
+  // Step 1: URL submitted - show loading screen
+  const handleUrlSubmit = (url: string) => {
+    console.log('[Onboarding] URL submitted, showing loading screen:', url);
+    setSubmittedUrl(url);
+    setCurrentStep('loading');
   };
 
-  const handleMethodContinue = () => {
-    if (method) {
-      setCurrentStep(2);
+  // Loading screen completed - process consolidated results
+  const handleLoadingComplete = (results: OnboardingResults) => {
+    console.log('[Onboarding] Loading complete, processing results:', results);
+
+    // Store extraction data (critical - always present)
+    if (results.extraction) {
+      setExtractedData(results.extraction);
     }
-  };
 
-  // Step 2: Brand extraction/entry
-  const handleBrandExtracted = async (data: BrandExtractResponse) => {
-    setExtractedData(data);
+    // Store brand profile data (if available)
+    if (results.brandProfile && results.brandProfile.data?.brandProfile) {
+      const profile = results.brandProfile.data.brandProfile;
 
-    // Brand Profiler Worker will be called during save (Step 4)
-    // For now, just extract basic info from the extracted data
-    if (data.brand.url) {
-      // Use extracted metadata as initial values
+      console.log('[Onboarding] ✅ Brand profile loaded:', {
+        name: profile.brand?.name,
+        tagline: profile.brand?.tagline
+      });
+
+      // Store full brand profile data for Step 3 (Audiences) and Step 5 (Brand Details)
+      setBrandProfileResponse(results.brandProfile.data);
+
+      // Store name/tagline/story for auto-fill in Step 5
       setBrandProfileData({
-        name: data.brand.metadata?.title || '',
-        description: data.brand.metadata?.description || ''
+        name: profile.brand?.name || results.extraction?.brand.metadata?.title || '',
+        description: profile.brand?.story || results.extraction?.brand.metadata?.description || '',
+        tagline: profile.brand?.tagline || ''
+      });
+    } else {
+      // Fallback to metadata if Brand Profiler failed
+      console.warn('[Onboarding] ⚠️ Brand Profiler failed, using metadata');
+      setBrandProfileData({
+        name: results.extraction?.brand.metadata?.title || '',
+        description: results.extraction?.brand.metadata?.description || '',
+        tagline: ''
       });
     }
 
-    setCurrentStep(3);
+    // Store discovered products (if available)
+    if (results.pageDiscovery && results.pageDiscovery.success && results.pageDiscovery.pages) {
+      // Filter for service/product pages
+      const productPages = results.pageDiscovery.pages.filter((page: any) => {
+        const category = page.category?.toLowerCase() || '';
+        const url = page.url.toLowerCase();
+        const title = page.title?.toLowerCase() || '';
+
+        // Look for service, product, or offerings pages
+        return (
+          category.includes('service') ||
+          category.includes('product') ||
+          category.includes('offering') ||
+          url.includes('/service') ||
+          url.includes('/product') ||
+          url.includes('/offering') ||
+          title.includes('service') ||
+          title.includes('product')
+        );
+      });
+
+      // Convert to DiscoveredProduct format
+      const products: DiscoveredProduct[] = productPages.map((page: any) => ({
+        title: page.title || 'Untitled Page',
+        url: page.url,
+        excerpt: page.textContent?.substring(0, 200) || '',
+        type: 'discovered' as const
+      }));
+
+      setDiscoveredProducts(products);
+      console.log(`[Onboarding] ✅ Discovered ${products.length} product/service pages`);
+    } else {
+      console.warn('[Onboarding] ⚠️ Page discovery failed, no products found');
+    }
+
+    // Move to Step 2 (Asset Review)
+    setCurrentStep(2);
+  };
+
+  // Handle loading error
+  const handleLoadingError = (error: string) => {
+    console.error('[Onboarding] Loading failed:', error);
+    alert(error);
+    setCurrentStep(1); // Go back to URL input
   };
 
   const handleManualSubmit = (name: string, website: string, description: string) => {
     setManualBrandData({ name, website, description });
-    setCurrentStep(4); // Skip asset review for manual
+    setCurrentStep(5); // Skip asset review, audience selection, and product selection for manual
   };
 
-  // Step 3: Asset review
+  // Step 2: Asset review
   const handleAssetReviewContinue = (assets: RemovedAssets) => {
     setRemovedAssets(assets);
-    setCurrentStep(4);
+    setCurrentStep(3); // Go to Audience Selection
   };
 
-  // Step 4: Final details and save
+  // Step 3: Audience selection
+  const handleAudienceContinue = async (audiences: Array<Omit<TargetAudience, 'id' | 'brand_id' | 'created_at' | 'updated_at'>>) => {
+    setSelectedAudiences(audiences);
+    setCurrentStep(4); // Go to Product Selection
+  };
+
+  const handleAudienceSkip = () => {
+    setSelectedAudiences([]);
+    setCurrentStep(4); // Go to Product Selection
+  };
+
+  // Step 4: Product selection
+  const handleProductContinue = async (products: DiscoveredProduct[]) => {
+    setSelectedProducts(products);
+    setCurrentStep(5); // Go to Brand Details
+  };
+
+  const handleProductSkip = () => {
+    setSelectedProducts([]);
+    setCurrentStep(5); // Go to Brand Details
+  };
+
+  // Step 5: Final details and save
   const handleSaveBrand = async (details: BrandDetailsData) => {
     setIsSaving(true);
 
@@ -172,33 +269,43 @@ const BrandOnboarding = () => {
       }
 
       // ============================================
-      // STEP 3: Generate Brand Profile using Brand Profiler Worker (NON-CRITICAL - can fail)
+      // STEP 3: Save Brand Profile (already generated in Step 1)
       // ============================================
-      if (brandWebsite) {
+      if (brandWebsite && brandProfileResponse) {
+        // We already have brand profile data from Step 1, just save it to the database
         try {
-          console.log('[Onboarding] Step 3: Generating complete brand profile...');
-          console.log('[Onboarding] This will analyze website content, extract tone/voice, and create writing guide');
+          console.log('[Onboarding] Step 3: Saving brand profile to database...');
 
-          // Call Brand Profiler Worker - it will scrape, analyze, and save everything
-          const profileResponse = await generateBrandProfile(brandId, brandWebsite, {
-            includeReviews: false, // Skip reviews for faster onboarding (60-80s with reviews)
-            maxPages: 15 // Analyze 15 pages for comprehensive profile
+          // Save the brand profile with updated tagline from user input
+          const profile = brandProfileResponse.brandProfile;
+
+          await apiClient.post('/api/brand-profile', {
+            brand_id: brandId,
+            brand_name: profile.brand?.name || details.name,
+            tagline: details.tagline || profile.brand?.tagline, // Use user's tagline if provided
+            story: profile.brand?.story,
+            mission: profile.brand?.mission,
+            positioning: profile.brand?.positioning,
+            value_props: profile.brand?.valueProps,
+            personality: profile.voice?.personality,
+            tone_sliders: profile.voice?.toneSliders,
+            lexicon_preferred: profile.voice?.lexicon?.preferred,
+            lexicon_avoid: profile.voice?.lexicon?.avoid,
+            primary_audience: profile.audience?.primary,
+            audience_needs: profile.audience?.needs,
+            audience_pain_points: profile.audience?.painPoints,
+            sentence_length: profile.writingGuide?.sentenceLength,
+            paragraph_style: profile.writingGuide?.paragraphStyle,
+            formatting_guidelines: profile.writingGuide?.formatting,
+            writing_avoid: profile.writingGuide?.avoid,
+            pages_crawled: brandProfileResponse.insights?.pagesCrawled,
+            reviews_analyzed: brandProfileResponse.insights?.reviewsAnalyzed,
+            review_sources: brandProfileResponse.insights?.sources
           });
 
-          if (profileResponse.success) {
-            console.log('[Onboarding] ✅ Brand profile generated successfully!');
-            console.log('[Onboarding] Generated:', {
-              personality: profileResponse.data?.brandProfile?.voice?.personality,
-              toneSliders: profileResponse.data?.brandProfile?.voice?.toneSliders,
-              sentenceLength: profileResponse.data?.brandProfile?.writingGuide?.sentenceLength,
-              pagesCrawled: profileResponse.data?.insights?.pagesCrawled
-            });
-          } else {
-            console.log('[Onboarding] ⚠️ Brand profile generation returned non-success');
-            warnings.push('Brand profile could not be generated. You can generate it later from the Brand Profile tab.');
-          }
+          console.log('[Onboarding] ✅ Brand profile saved successfully');
         } catch (error: any) {
-          console.error('[Onboarding] ⚠️ Failed to generate brand profile:', error);
+          console.error('[Onboarding] ⚠️ Failed to save brand profile:', error);
 
           // Provide helpful error messages based on error type
           if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
@@ -229,21 +336,74 @@ const BrandOnboarding = () => {
       }
 
       // ============================================
-      // STEP 5: Complete Onboarding
+      // STEP 5: Save Selected Products (NON-CRITICAL - can fail)
+      // ============================================
+      if (selectedProducts.length > 0) {
+        try {
+          console.log(`[Onboarding] Step 5: Saving ${selectedProducts.length} selected products...`);
+
+          for (const product of selectedProducts) {
+            await apiClient.post('/api/products-services', {
+              brand_id: brandId,
+              name: product.title,
+              category: 'product', // Default to 'product', can be changed later
+              description: product.excerpt,
+              cturl: product.url
+            });
+          }
+
+          console.log('[Onboarding] ✅ Products/Services saved successfully');
+        } catch (error: any) {
+          console.error('[Onboarding] ⚠️ Failed to save products/services:', error);
+          warnings.push('Products/Services could not be saved. You can add them later from the Products page.');
+        }
+      }
+
+      // ============================================
+      // STEP 6: Save Selected Audiences (NON-CRITICAL - can fail)
+      // ============================================
+      if (selectedAudiences.length > 0) {
+        try {
+          console.log(`[Onboarding] Step 6: Saving ${selectedAudiences.length} selected audiences...`);
+
+          for (const audience of selectedAudiences) {
+            await apiClient.post('/api/target-audiences', {
+              brand_id: brandId,
+              name: audience.name,
+              description: audience.description,
+              demographics: audience.demographics,
+              interests: audience.interests,
+              pain_points: audience.pain_points,
+              goals: audience.goals,
+              budget_range: audience.budget_range,
+              channels: audience.channels
+            });
+          }
+
+          console.log('[Onboarding] ✅ Target audiences saved successfully');
+        } catch (error: any) {
+          console.error('[Onboarding] ⚠️ Failed to save target audiences:', error);
+          warnings.push('Target audiences could not be saved. You can add them later from the Audiences page.');
+        }
+      }
+
+      // ============================================
+      // STEP 7: Complete Onboarding
       // ============================================
       console.log('[Onboarding] ✅ Onboarding complete!');
 
       // Set as current brand
       setCurrentBrand(newBrand);
 
-      // Show warnings if any
-      if (warnings.length > 0) {
-        const warningMessage = 'Brand created successfully!\n\nNote:\n' + warnings.join('\n');
-        alert(warningMessage);
-      }
-
-      // Navigate to the brand profile
+      // Navigate to the brand profile immediately (don't block on warnings)
       navigate(generateBrandUrl(newBrand, 'brand'));
+
+      // Show warnings in console only (don't interrupt user flow with alerts)
+      if (warnings.length > 0) {
+        console.warn('[Onboarding] ⚠️ Non-critical warnings during brand creation:');
+        warnings.forEach((warning, i) => console.warn(`  ${i + 1}. ${warning}`));
+        console.warn('[Onboarding] These features can be accessed later from the brand page.');
+      }
     } catch (error: any) {
       console.error('[Onboarding] ❌ Critical error during onboarding:', error);
 
@@ -270,7 +430,10 @@ const BrandOnboarding = () => {
 
   // Navigation
   const handleBack = () => {
-    if (currentStep > 1) {
+    if (currentStep === 'loading') {
+      // Can't go back during loading
+      return;
+    } else if (typeof currentStep === 'number' && currentStep > 1) {
       setCurrentStep((currentStep - 1) as OnboardingStep);
     } else {
       navigate('/brands');
@@ -279,57 +442,59 @@ const BrandOnboarding = () => {
 
   const getStepTitle = () => {
     switch (currentStep) {
-      case 1: return 'Choose Method';
-      case 2: return method === 'automatic' ? 'Extract Assets' : 'Enter Information';
-      case 3: return 'Review Assets';
-      case 4: return 'Brand Details';
+      case 1: return 'Extract Brand Assets';
+      case 2: return 'Review Assets';
+      case 3: return 'Target Audiences';
+      case 4: return 'Products & Services';
+      case 5: return 'Brand Details';
       default: return '';
     }
   };
 
   return (
     <div className="brand-onboarding">
-      <div className="onboarding-header">
-        <button className="back-button" onClick={handleBack}>
-          <ArrowLeft size={20} />
-          {currentStep === 1 ? 'Back to Brands' : 'Back'}
-        </button>
+      {currentStep !== 'loading' && (
+        <div className="onboarding-header">
+          <button className="back-button" onClick={handleBack}>
+            <ArrowLeft size={20} />
+            {currentStep === 1 ? 'Back to Brands' : 'Back'}
+          </button>
 
-        <div className="onboarding-progress">
-          <div className="progress-steps">
-            {[1, 2, 3, 4].map((step) => (
-              <div
-                key={step}
-                className={`progress-step ${currentStep >= step ? 'active' : ''} ${currentStep === step ? 'current' : ''}`}
-              >
-                <div className="progress-circle">{step}</div>
-                {step < 4 && <div className="progress-line" />}
-              </div>
-            ))}
+          <div className="onboarding-progress">
+            <div className="progress-steps">
+              {[1, 2, 3, 4, 5].map((step) => (
+                <div
+                  key={step}
+                  className={`progress-step ${currentStep >= step ? 'active' : ''} ${currentStep === step ? 'current' : ''}`}
+                >
+                  <div className="progress-circle">{step}</div>
+                  {step < 5 && <div className="progress-line" />}
+                </div>
+              ))}
+            </div>
+            <div className="progress-title">{getStepTitle()}</div>
           </div>
-          <div className="progress-title">{getStepTitle()}</div>
         </div>
-      </div>
+      )}
 
       <div className="onboarding-content">
         {currentStep === 1 && (
-          <MethodSelection
-            selectedMethod={method}
-            onMethodSelect={handleMethodSelect}
-            onContinue={handleMethodContinue}
-          />
-        )}
-
-        {currentStep === 2 && method && (
           <BrandExtraction
-            method={method}
-            onExtracted={handleBrandExtracted}
+            onUrlSubmit={handleUrlSubmit}
             onManualSubmit={handleManualSubmit}
             onBack={handleBack}
           />
         )}
 
-        {currentStep === 3 && extractedData && (
+        {currentStep === 'loading' && (
+          <ConsolidatedLoadingScreen
+            url={submittedUrl}
+            onComplete={handleLoadingComplete}
+            onError={handleLoadingError}
+          />
+        )}
+
+        {currentStep === 2 && extractedData && (
           <AssetReview
             extractedData={extractedData}
             onContinue={handleAssetReviewContinue}
@@ -337,15 +502,39 @@ const BrandOnboarding = () => {
           />
         )}
 
+        {currentStep === 3 && (
+          <AudienceSelection
+            brandProfile={brandProfileResponse?.brandProfile}
+            brandMetadata={{
+              name: manualBrandData?.name || brandProfileData?.name || extractedData?.brand.metadata?.title || '',
+              industry: '', // Will be filled in Step 5
+              description: manualBrandData?.description || brandProfileData?.description || extractedData?.brand.metadata?.description || '',
+              website: manualBrandData?.website || extractedData?.brand.url || ''
+            }}
+            onContinue={handleAudienceContinue}
+            onSkip={handleAudienceSkip}
+            onBack={handleBack}
+          />
+        )}
+
         {currentStep === 4 && (
+          <ProductSelection
+            discoveredProducts={discoveredProducts}
+            onContinue={handleProductContinue}
+            onSkip={handleProductSkip}
+            onBack={handleBack}
+          />
+        )}
+
+        {currentStep === 5 && (
           <BrandDetails
             initialName={manualBrandData?.name || brandProfileData?.name || ''}
+            initialTagline={brandProfileData?.tagline || ''}
             initialWebsite={manualBrandData?.website || extractedData?.brand.url || ''}
             initialDescription={manualBrandData?.description || brandProfileData?.description || ''}
             onSave={handleSaveBrand}
             onBack={handleBack}
             isSaving={isSaving}
-            isLoadingProfile={isLoadingProfile}
           />
         )}
       </div>

@@ -1,55 +1,40 @@
 import { useState } from 'react';
-import { AlertCircle } from 'lucide-react';
-import type { BrandExtractResponse } from '@/types';
-import { extractBrandData } from '@/services/api/brandService';
 import './BrandExtraction.css';
 
 interface BrandExtractionProps {
-  method: 'automatic' | 'manual';
-  onExtracted: (data: BrandExtractResponse) => void;
+  onUrlSubmit: (url: string) => void;
   onManualSubmit: (name: string, website: string, description: string) => void;
   onBack: () => void;
 }
 
-const BrandExtraction = ({ method, onExtracted, onManualSubmit, onBack }: BrandExtractionProps) => {
+const BrandExtraction = ({ onUrlSubmit, onManualSubmit, onBack }: BrandExtractionProps) => {
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
   const [website, setWebsite] = useState('');
   const [description, setDescription] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showManualEntry, setShowManualEntry] = useState(false);
 
-  const handleAnalyze = async () => {
-    if (method === 'automatic') {
-      if (!url) {
-        setError('Please enter a website URL');
-        return;
-      }
-
-      setIsLoading(true);
-      setError('');
-
-      try {
-        const response = await extractBrandData(url, true);
-        onExtracted(response);
-      } catch (err: any) {
-        setError(err.message || 'Failed to extract brand data. Please try again.');
-        console.error('Brand extraction error:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      // Manual mode
-      if (!name) {
-        setError('Please enter a brand name');
-        return;
-      }
-      onManualSubmit(name, website, description);
+  const handleAnalyze = () => {
+    if (!url) {
+      setError('Please enter a website URL');
+      return;
     }
+
+    // Validate URL format
+    try {
+      new URL(url.startsWith('http') ? url : `https://${url}`);
+    } catch {
+      setError('Please enter a valid website URL');
+      return;
+    }
+
+    setError('');
+    onUrlSubmit(url);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isLoading) {
+    if (e.key === 'Enter') {
       handleAnalyze();
     }
   };
@@ -57,41 +42,43 @@ const BrandExtraction = ({ method, onExtracted, onManualSubmit, onBack }: BrandE
   return (
     <div className="brand-extraction">
       <div className="step-header">
-        <h2 className="step-title">
-          {method === 'automatic' ? 'Extract Brand Assets' : 'Enter Brand Information'}
-        </h2>
+        <h2 className="step-title">Extract Brand Assets</h2>
         <p className="step-description">
-          {method === 'automatic'
-            ? 'Enter your brand website URL to automatically extract logos, colors, and typography.'
-            : 'Manually enter your brand details to create a new brand profile.'}
+          Enter your brand website URL to automatically extract logos, colors, and typography.
         </p>
       </div>
 
       <div className="extraction-form">
-        {method === 'automatic' ? (
-          <div className="form-group">
-            <label className="form-label">Website URL</label>
-            <div className="input-with-button">
-              <input
-                type="url"
-                className="input"
-                placeholder="https://example.com"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isLoading}
-              />
-              <button
-                className="button button-primary"
-                onClick={handleAnalyze}
-                disabled={isLoading || !url}
-              >
-                {isLoading ? 'Analyzing...' : 'Analyze'}
-              </button>
-            </div>
+        <div className="form-group">
+          <label className="form-label">Website URL</label>
+          <div className="input-with-button">
+            <input
+              type="url"
+              className="input"
+              placeholder="https://example.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyPress={handleKeyPress}
+            />
+            <button
+              className="button button-primary"
+              onClick={handleAnalyze}
+              disabled={!url}
+            >
+              Analyze
+            </button>
           </div>
-        ) : (
-          <>
+        </div>
+
+        {error && (
+          <div className="error-message">
+            <span>{error}</span>
+          </div>
+        )}
+
+        {showManualEntry && (
+          <div className="manual-entry-form">
+            <h3 className="manual-entry-title">Manual Entry</h3>
             <div className="form-group">
               <label className="form-label">Brand Name *</label>
               <input
@@ -100,47 +87,63 @@ const BrandExtraction = ({ method, onExtracted, onManualSubmit, onBack }: BrandE
                 placeholder="Enter brand name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                onKeyPress={handleKeyPress}
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Website URL (Optional)</label>
+              <label className="form-label">Website URL</label>
               <input
                 type="url"
                 className="input"
                 placeholder="https://example.com"
-                value={website}
+                value={website || url}
                 onChange={(e) => setWebsite(e.target.value)}
-                onKeyPress={handleKeyPress}
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Brand Description (Optional)</label>
+              <label className="form-label">Description (Optional)</label>
               <textarea
                 className="textarea"
                 placeholder="Brief description of your brand..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={4}
+                rows={3}
               />
             </div>
-          </>
-        )}
 
-        {error && (
-          <div className="error-message">
-            <AlertCircle size={18} />
-            <span>{error}</span>
+            <div className="manual-entry-actions">
+              <button
+                className="button button-secondary"
+                onClick={() => {
+                  setShowManualEntry(false);
+                  setError('');
+                }}
+              >
+                Back to URL Entry
+              </button>
+              <button
+                className="button button-primary"
+                onClick={() => onManualSubmit(name, website || url, description)}
+                disabled={!name}
+              >
+                Continue with Manual Entry
+              </button>
+            </div>
           </div>
         )}
 
-        {isLoading && (
-          <div className="loading-container">
-            <div className="loading"></div>
-            <p className="loading-text">
-              Analyzing website and extracting brand assets... This may take a few moments.
+        {!showManualEntry && (
+          <div className="manual-entry-prompt">
+            <p className="prompt-text">
+              Or{' '}
+              <button
+                className="link-button"
+                onClick={() => setShowManualEntry(true)}
+              >
+                enter details manually
+              </button>
+              {' '}if you prefer.
             </p>
           </div>
         )}
@@ -150,15 +153,6 @@ const BrandExtraction = ({ method, onExtracted, onManualSubmit, onBack }: BrandE
         <button className="button button-secondary" onClick={onBack}>
           Back
         </button>
-        {method === 'manual' && (
-          <button
-            className="button button-primary"
-            onClick={handleAnalyze}
-            disabled={!name}
-          >
-            Continue
-          </button>
-        )}
       </div>
     </div>
   );

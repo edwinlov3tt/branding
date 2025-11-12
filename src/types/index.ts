@@ -129,6 +129,8 @@ export interface LogoColor {
 export interface MetadataData {
   extractionTime: string;
   success: boolean;
+  title?: string;
+  description?: string;
 }
 
 export interface BrandSummary {
@@ -659,4 +661,52 @@ export interface ForeplayAd {
   last_seen: string;
   landing_page?: string;
   cta?: string;
+}
+
+// Job Status Types (for async polling)
+export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+// Onboarding Session (for localStorage recovery)
+export interface OnboardingSession {
+  jobId: string;
+  url: string;
+  status: JobStatus;
+  startedAt: string;
+  lastCheckedAt?: string;
+  retryCount?: number;
+}
+
+// Onboarding Progress Tracking (for consolidated loading screen)
+export type OnboardingStepStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'retrying';
+
+export interface OnboardingStepProgress {
+  status: OnboardingStepStatus;
+  message?: string;
+  error?: string;
+  retryCount?: number;
+}
+
+export interface OnboardingProgress {
+  extraction: OnboardingStepProgress;
+  brandProfile: OnboardingStepProgress;
+  pageDiscovery: OnboardingStepProgress;
+  overallProgress: number; // 0-100
+}
+
+export interface OnboardingResults {
+  extraction?: BrandExtractResponse;
+  brandProfile?: {
+    success: boolean;
+    data: {
+      jobId: string;
+      brandProfile: BrandProfilerResponse['brandProfile'];
+      insights: BrandProfilerResponse['insights'];
+    };
+  };
+  pageDiscovery?: DiscoverPagesResponse;
+  errors: {
+    extraction?: string;
+    brandProfile?: string;
+    pageDiscovery?: string;
+  };
 }
